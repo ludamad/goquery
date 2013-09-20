@@ -7,13 +7,13 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"log"
 	"os"
-	"fmt"
 )
 
 type Method struct {
@@ -32,7 +32,7 @@ func InsertMethods(db *sql.DB, methods []Method) {
 	defer stmt.Close()
 
 	for _, method := range methods {
-    	fmt.Printf("Method '%s.%s' added to DB\n", method.Package, method.Name)
+		fmt.Printf("Method '%s.%s' added to DB\n", method.Package, method.Name)
 		_, err = stmt.Exec(method.Package, method.Name)
 		if err != nil {
 			log.Fatal(err)
@@ -45,16 +45,17 @@ func DumpAstToDB(db *sql.DB, file_ast *ast.File) {
 	methods := []Method{}
 	// Inspect the AST and print all identifiers and literals.
 	ast.Inspect(file_ast, func(n ast.Node) bool {
-	    if f, ok := n.(*ast.FuncDecl); ok {
-	    	fmt.Printf("Method '%s.%s' found\n", file_ast.Name, f.Name)
+		if f, ok := n.(*ast.FuncDecl); ok {
+			fmt.Printf("Method '%s.%s' found\n", file_ast.Name, f.Name)
 			methods = append(methods, Method{file_ast.Name.Name, f.Name.Name})
-	    }
+		}
 		return true
 	})
 	InsertMethods(db, methods)
 }
 
 func main() {
+	log.Printf("%d", os.Args)
 	if len(os.Args) < 1 {
 		log.Fatal("Expected usage: goquery <source file>")
 	}
