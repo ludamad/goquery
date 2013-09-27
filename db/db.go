@@ -5,7 +5,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
-	"fmt"
+//	"fmt"
 )
 
 // Helpers to reduce boilerplate:
@@ -47,7 +47,7 @@ type InterfaceDeclaration struct {
 
 func DBAddInterfaceDeclaration(db *sql.DB, iface InterfaceDeclaration) {
 	for _, req := range iface.Requirements {
-		fmt.Printf("Interface requirement for %s: '%s' type '%s' added to DB\n", iface.Name, req.Name, req.TypeRepr)
+//		fmt.Printf("Interface requirement for %s: '%s' type '%s' added to DB\n", iface.Name, req.Name, req.TypeRepr)
 		_DBAction(db, "INSERT INTO interface_reqs(interface, name, type) values(?, ?, ?)", iface.Name, req.Name, req.TypeRepr)
 	}
 }
@@ -59,7 +59,7 @@ type MethodDeclaration struct {
 }
 
 func DBAddMethodDeclaration(db *sql.DB, method MethodDeclaration) {
-	fmt.Printf("Method '%s' type '%s' receiver '%s' added to DB\n", method.Name, method.SignatureTypeRepr, method.ReceiverTypeRepr)
+//	fmt.Printf("Method '%s' type '%s' receiver '%s' added to DB\n", method.Name, method.SignatureTypeRepr, method.ReceiverTypeRepr)
 	_DBAction(db, "INSERT INTO methods(name, type, receiver_type) values(?, ?, ?)", method.Name, method.SignatureTypeRepr, method.ReceiverTypeRepr)
 }
 
@@ -69,7 +69,7 @@ type TypeDeclaration struct {
 }
 
 func DBAddTypeDeclaration(db *sql.DB, typeDecl TypeDeclaration) {
-	fmt.Printf("Type '%s' = '%s' added to DB\n", typeDecl.Name, typeDecl.TypeRepr)
+//	fmt.Printf("Type '%s' = '%s' added to DB\n", typeDecl.Name, typeDecl.TypeRepr)
 	_DBAction(db, "INSERT INTO types(name, type) values(?, ?)", typeDecl.Name, typeDecl.TypeRepr)
 }
 

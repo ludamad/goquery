@@ -154,7 +154,6 @@ func main() {
 	}
 	context.checkTypes()
 
-	// typecheck and collect typechecker errors
 	for _, file := range context.files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			HandleNode(&context, file, n)

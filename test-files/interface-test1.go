@@ -1,4 +1,4 @@
-package src
+package test1
 
 type I interface {
 	Requirement1()
