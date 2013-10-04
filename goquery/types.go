@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strconv"
 
+	"log"
+	"go/ast"
+
 	"../go-future/types"
 )
 
@@ -63,4 +66,23 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 	default:
 		buffer.WriteString(typ.String())
 	}
+}
+
+func (context *SymbolContext) resolveTypes() {
+	ctxt := types.Default
+	ctxt.Error = func(err error) { log.Fatal(err) }
+	ctxt.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
+		context.exprToType[x] = typ
+		//		ast.Fprint(os.Stdout, fset, x, nil)
+		//		fmt.Println(x, TypeRepresentation(typ), val)
+	}
+	ctxt.Check(context.fileSet, context.fileList())
+}
+
+func (context *SymbolContext) lookupType(expr ast.Expr) types.Type {
+	return context.exprToType[expr]
+}
+
+func (context *SymbolContext) exprRepr(expr ast.Expr) string {
+	return TypeRepresentation(context.lookupType(expr))
 }
