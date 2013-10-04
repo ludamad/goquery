@@ -1,7 +1,7 @@
 package goquery
 
 import (
-	"../go-future/types"
+	"go-future/types"
 	"go/ast"
 	"go/token"
 )

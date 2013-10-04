@@ -3,6 +3,7 @@ package goquery
 import (
 	"database/sql"
 
+        "fmt"
 	"log"
 	"go/ast"
 	"go/token"
@@ -22,6 +23,7 @@ func (context *SymbolContext) DatabaseInsert(db *sql.DB, conf Configuration) {
 	})
 
 	for filename, file := range context.nameToAstFile {
+                fmt.Printf("Dumping AST of file '%s'\n", filename)
 		currentScope := map[*ast.Object]bool{}
 
 		for _, obj := range file.Scope.Objects {
@@ -36,6 +38,7 @@ func (context *SymbolContext) DatabaseInsert(db *sql.DB, conf Configuration) {
 			state.handleNode(n)
 			return true
 		})
+                fmt.Printf("Done dumping AST of file '%s'\n", filename)
 	}
 }
 
@@ -147,4 +150,8 @@ type TypeDeclaration struct {
 type Ref struct {
 	Name string // The unique identifier being referenced
 	Pos token.Position
+}
+
+type DBAddable interface {
+    DBAdd(db *sql.DB)
 }
