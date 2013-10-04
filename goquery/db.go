@@ -1,8 +1,7 @@
-package db
+package goquery 
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
 //	"fmt"
@@ -73,9 +72,11 @@ func DBAddTypeDeclaration(db *sql.DB, typeDecl TypeDeclaration) {
 	_DBAction(db, "INSERT INTO types(name, type) values(?, ?)", typeDecl.Name, typeDecl.TypeRepr)
 }
 
-func DBInitialize() *sql.DB {
-	os.Remove("./hello-world.db")
-	db, err := sql.Open("sqlite3", "./hello-world.db")
+func DBInitialize(driver string, filename string, deletePrevious bool) *sql.DB {
+	if deletePrevious {
+		os.Remove(filename)
+	}
+	db, err := sql.Open(driver, filename)
 	if err != nil {
 		log.Fatal(err)
 	}
