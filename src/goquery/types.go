@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"strconv"
 
-	"log"
-        "fmt"
+	"fmt"
 	"go/ast"
+	"log"
 
 	"go-future/types"
 )
@@ -71,16 +71,16 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 
 func (context *SymbolContext) resolveTypes() {
 	ctxt := types.Default
-	ctxt.Error = func(err error) { 
-            fmt.Println("A problem occurred in resolveTypes:")
-            log.Fatal(err)
-        }
+	ctxt.Error = func(err error) {
+		fmt.Println("A problem occurred in resolveTypes:")
+		log.Fatal(err)
+	}
 	ctxt.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
 		context.exprToType[x] = typ
 		//		ast.Fprint(os.Stdout, fset, x, nil)
 		//		fmt.Println(x, TypeRepresentation(typ), val)
 	}
-        fmt.Println("Resolving types ...")
+	fmt.Println("Resolving types ...")
 	ctxt.Check(context.fileSet, context.fileList())
 }
 

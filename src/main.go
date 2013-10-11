@@ -8,14 +8,13 @@ import (
 	"flag"
 )
 
-
 func main() {
 	flag.Parse()
 
 	// Parse command line files:
 	context := goquery.NewContext()
 	context.Parse(flag.Args())
-//	context.DebugPrint()
+	//	context.DebugPrint()
 
 	// Dump to DB:
 	db := goquery.DBInitialize("sqlite3", "./hello-world.db", true /*Delete previous*/)

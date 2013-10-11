@@ -1,8 +1,8 @@
 package goquery
 
 import (
+	"fmt"
 	"go/parser"
-        "fmt"
 )
 
 func (context *SymbolContext) Parse(files []string) {
@@ -14,11 +14,11 @@ func (context *SymbolContext) Parse(files []string) {
 
 func (context *SymbolContext) parseFile(filename string) {
 	file, err := parser.ParseFile(context.fileSet, filename, nil, parser.DeclarationErrors|parser.AllErrors)
-        fmt.Printf("Parsing '%s'...\n", filename)
+	fmt.Printf("Parsing '%s'...\n", filename)
 	if err != nil {
-                fmt.Println("Problem in parseFile:")         
+		fmt.Println("Problem in parseFile:")
 		panic(err)
 	}
-        fmt.Printf("Done parsing '%s'...\n", filename)
+	fmt.Printf("Done parsing '%s'...\n", filename)
 	context.nameToAstFile[filename] = file
 }

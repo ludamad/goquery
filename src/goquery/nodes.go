@@ -3,10 +3,10 @@ package goquery
 import (
 	"database/sql"
 
-        "fmt"
-	"log"
+	"fmt"
 	"go/ast"
 	"go/token"
+	"log"
 )
 
 func (context *SymbolContext) DebugPrint() {
@@ -23,7 +23,7 @@ func (context *SymbolContext) DatabaseInsert(db *sql.DB, conf Configuration) {
 	})
 
 	for filename, file := range context.nameToAstFile {
-                fmt.Printf("Dumping AST of file '%s'\n", filename)
+		fmt.Printf("Dumping AST of file '%s'\n", filename)
 		currentScope := map[*ast.Object]bool{}
 
 		for _, obj := range file.Scope.Objects {
@@ -32,13 +32,13 @@ func (context *SymbolContext) DatabaseInsert(db *sql.DB, conf Configuration) {
 		ast.Inspect(file, func(n ast.Node) bool {
 			tokenFile := tokenFiles[filename]
 			if tokenFile == nil {
-				log.Fatal("Assertion error: tokenFile != nil") 
+				log.Fatal("Assertion error: tokenFile != nil")
 			}
 			state := _State{context, db, conf, file, tokenFile, currentScope}
 			state.handleNode(n)
 			return true
 		})
-                fmt.Printf("Done dumping AST of file '%s'\n", filename)
+		fmt.Printf("Done dumping AST of file '%s'\n", filename)
 	}
 }
 
@@ -123,35 +123,35 @@ func (s *_State) handleTypeSpecNode(t *ast.TypeSpec) {
 
 type InterfaceRequirement struct {
 	Name, TypeRepr string
-	Pos token.Position
+	Pos            token.Position
 }
 
 type InterfaceDeclaration struct {
 	Name         string
 	Requirements []InterfaceRequirement
-	Pos token.Position
+	Pos          token.Position
 }
 
 type FuncDeclaration struct {
 	Name, SignatureTypeRepr string
-	Pos token.Position
+	Pos                     token.Position
 }
 
 type MethodDeclaration struct {
 	Name, SignatureTypeRepr, ReceiverTypeRepr string // Can be '' == no receiver
-	Pos token.Position
+	Pos                                       token.Position
 }
 
 type TypeDeclaration struct {
 	Name, TypeRepr string
-	Pos token.Position
+	Pos            token.Position
 }
 
 type Ref struct {
 	Name string // The unique identifier being referenced
-	Pos token.Position
+	Pos  token.Position
 }
 
 type DBAddable interface {
-    DBAdd(db *sql.DB)
+	DBAdd(db *sql.DB)
 }

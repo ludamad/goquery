@@ -61,7 +61,7 @@ func dbExec(db *sql.DB, sql string) {
 
 func dbInsert(db *sql.DB, schema string, args ...interface{}) {
 	// Assumes at least one arg in 'args':
-	marks := "?" + strings.Repeat(", ?", len(args) - 1)
+	marks := "?" + strings.Repeat(", ?", len(args)-1)
 	sql := "INSERT INTO " + schema + " values(" + marks + ")"
 	dbAction(db, sql, args...)
 }
