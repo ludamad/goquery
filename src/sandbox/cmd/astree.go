@@ -58,6 +58,11 @@ func main() {
     flag.StringVar(&filename, "f", "", "specify go file to parse")
     flag.Parse()
 
+    if filename == "" {
+        fmt.Println("Usage: -f <go file>")
+        os.Exit(1)
+    }
+
     fileset = token.NewFileSet()
     f = &walker{}
 

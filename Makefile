@@ -22,3 +22,13 @@ $(CLEAN_LIST): %_clean:
 	$(GOCLEAN) $(PACKAGES)
 $(IREF_LIST): %_iref:
 	$(GODEP) $(PACKAGES)
+
+
+#----------------------------------
+
+.PHONY: sandbox
+
+sandbox: astree
+
+astree: src/sandbox/cmd/astree.go
+	$(GOCMD) build src/sandbox/cmd/astree.go
