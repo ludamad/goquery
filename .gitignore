@@ -1,3 +1,5 @@
 *.db
 main
+astree
 pkg
+*.swp
