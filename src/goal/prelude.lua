@@ -23,6 +23,11 @@ function class()
     return type
 end
 
+function table.contains(t, val)
+    for i=1,#t do if t[i] == val then return true end end
+    return false
+end
+
 function string:split(sep)
     local t = {}
     self:gsub(("([^%s]+)"):format(sep), function(s) table.insert(t, s) end)
@@ -272,3 +277,72 @@ function AnalyzeAll(fnames)
     goal.GlobalSymbolContext.AnalyzeAll(fnames)
     ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
 end
+
+
+local NodeRef = class()
+local function pack_ref(...) return {...} end
+function NodeRef:init(key, --[[Optional]] f, --[[Optional]] expected, --[[Optional]] optional)
+    self.key, self.f = key, f
+    self.subnodes = {}
+    self.expected = expected or false
+    self.optional = optional or {}
+end
+function NodeRef:__call(...)
+    if not self.expected then
+        return {self.key, self.simpleResolve(...)}
+    end
+
+    for i=1,select("#", ...) do
+    	local arg = assert(select(i, ...), "Received nil while constructing program tree!")
+        self.subnodes[arg[1]] = arg[2]
+    end
+    return self.complexResolve(...)
+end
+function NodeRef:simpleResolve(...)
+    return self.f(...)
+end
+
+function NodeRef:complexResolve()
+    local T = self.subnodes
+    for _, e in ipairs(self.expected) do
+        assert(T[e], "Expected " .. e .. "!")
+    end
+    local args = {}
+    for k, v in pairs(T) do
+        if not table.contains(self.expected, k) and not table.contains(self.optional, k) then
+            assert(T[k], "Did not expect " .. k .. "!")
+        end
+    end
+    -- Handle expected
+    for _, e in ipairs(self.expected) do
+        table.insert(args, assert(T[e]))
+    end
+    -- Handle optional
+    local optional = {}
+    for _, o in ipairs(self.optional) do
+        if T[o] then optional[o.key] = assert(T[o]) end
+    end
+    table.insert(args, optional)
+    pretty(args)
+    return self.f(unpack(args))
+end
+
+local events = {"Analyze"}
+for _,k in ipairs(events) do
+    _G[k] = function(name) return k, name end
+end
+
+local base = {}
+local function dslWrap(k, expect, opt) _G[k] = NodeRef(k, base[k] or pack_ref, expect or nil, opt or nil) end
+local function dslWrapSimple(fnames)
+    for _, fname in ipairs(fnames) do dslWrap(fname, nil, nil) end
+end
+
+function base.Analyze(Files, opt)
+    ColorPrint("36;1", "-- ANALYZING:\n")
+    goal.GlobalSymbolContext.AnalyzeAll(Files)
+    ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+end
+
+dslWrap("Analyze", {"Files"}, {"Run"})
+dslWrapSimple {"Files", "Run"}
