@@ -3,7 +3,7 @@ GOBUILD=$(GOCMD) build -p 8
 GOCLEAN=$(GOCMD) clean
 GODEP=$(GOCMD) test -i
 
-PACKAGES = goquery go-future/types
+PACKAGES = goal go-future/types
 
 BUILD_LIST = $(foreach int, $(PACKAGES), $(int)_build)
 CLEAN_LIST = $(foreach int, $(PACKAGES), $(int)_clean)

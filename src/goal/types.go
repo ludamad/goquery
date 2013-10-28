@@ -1,4 +1,4 @@
-package goquery
+package goal
 
 import (
 	"bytes"
@@ -69,25 +69,22 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 	}
 }
 
-func (context *SymbolContext) resolveTypes() {
+func (context *GlobalSymbolContext) InferTypes() {
 	ctxt := types.Default
 	ctxt.Error = func(err error) {
-		fmt.Println("A problem occurred in resolveTypes:")
+		fmt.Println("A problem occurred in InferTypes:")
 		log.Fatal(err)
 	}
 	ctxt.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
-		context.exprToType[x] = typ
-		//		ast.Fprint(os.Stdout, fset, x, nil)
-		//		fmt.Println(x, TypeRepresentation(typ), val)
+		context.ExprToType[x] = typ
 	}
-	fmt.Println("Resolving types ...")
-	ctxt.Check(context.fileSet, context.fileList())
+	ctxt.Check(context.FileSet, context.FileList())
 }
 
-func (context *SymbolContext) lookupType(expr ast.Expr) types.Type {
-	return context.exprToType[expr]
+func (context *GlobalSymbolContext) LookupType(expr ast.Expr) types.Type {
+	return context.ExprToType[expr]
 }
 
-func (context *SymbolContext) exprRepr(expr ast.Expr) string {
-	return TypeRepresentation(context.lookupType(expr))
+func (context *GlobalSymbolContext) ExprRepr(expr ast.Expr) string {
+	return TypeRepresentation(context.LookupType(expr))
 }
