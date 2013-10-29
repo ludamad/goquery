@@ -238,12 +238,13 @@ function Compiler:Compile12_3(code, arg1, arg2)
     print("Compiling12_3 ", code, arg1, arg2 )
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
-function Compiler:AddNode(node) self.code.Add(node) end 
+function Compiler:AddNode(node) self.code.Add(node(self)) end 
 function Compiler:AddNodeRefs(nodes)
-    for _, n in ipairs(nodes) do self.AddNode(n(self)) end
+    for _, n in ipairs(nodes) do self.AddNode(n) end
 end
 function Compiler:CompileAll() self.code(self) end
 function Compiler:CompileConstant(constant)
+    assert(type(constant) == "string")
     self.Compile123("BC_STRING_CONSTANT", self.ResolveConstant(constant))
 end
 function Compiler:ResolveConstant(constant)
@@ -260,6 +261,9 @@ function Compiler:CompilePlaceholder() return self.bytes.PushBytecode(goal.Bytec
 function Compiler:BytesSize() return self.bytes.BytecodeSize() end -- Placeholder for jump
 function Compiler:ResolveObject(parts)
     local node = self.objects
+    if #parts == 0 then
+        return nil
+    end
     for _, part in pairs(parts) do
         assert(part:match("^%w+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
         node = node.Lookup(part)
@@ -280,17 +284,25 @@ end
 
 NBlock = class()
 goal.NBlock = NBlock
-function NBlock:init(--[[Optional]] block)
+function NBlock:init(C, --[[Optional]] block)
     self.block = block or {}
+    for i,f in ipairs(self.block) do self.block[i] = f(C) end
 end
 function NBlock:Add(code) 
     table.insert(self.block, code)
 end
-local function callNodes(nodes)
-    for _, child in ipairs(nodes) do child() end
+local function callNodes(nodes, C)
+    assert(C)
+    local block = {}
+    for i,f in ipairs(nodes) do 
+        local fc = f(C)
+    table.insert(block, fc) end
+    for _, child in ipairs(block) do
+         child(C)
+     end
 end
-function NBlock:__call()
-    callNodes(self.block)
+function NBlock:__call(C)
+    callNodes(self.block, C)
 end
 
 ops = {}
@@ -302,22 +314,27 @@ function ops.Print(C, str)
 end
 function ops.stringPush(C, expression)
     local obj, name = C.ParseVariable(expression)
-    local idx = obj.ResolveIndex()
-    return function() 
+    local idx = obj and obj.ResolveIndex() or 0
+    return function()
         C.Compile12_3("BC_STRING_PUSH", idx, goal["SMEMBER_" .. name])
+    end
+end
+function ops.objectPush(C, expression)
+    local obj, name = C.ParseVariable(expression)
+    local idx = obj and obj.ResolveIndex() or 0
+    return function() 
+        C.Compile12_3("BC_OBJECT_PUSH", idx, goal["OMEMBER_" .. name])
     end
 end
 
 function ops.checkExists(C, expression, yesCaseNode, noCaseNode)
-    local obj, name = C.ParseVariable(expression)
-    local idx = obj.ResolveIndex()
-    return function()
-        C.Compile12_3("BC_OBJECT_PUSH", idx, goal["OMEMBER_" .. name])
+    return function(C)
+        expression(C)
         local jumpToNoCaseStart = C.CompilePlaceholder()
-        yesCaseNode()
+        yesCaseNode(C)
         local jumpToNoCaseEnd = C.CompilePlaceholder()
         local noCaseStart = C.BytesSize()
-        noCaseNode()
+        noCaseNode(C)
         local noCaseEnd = C.BytesSize()
         C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
         C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
@@ -325,9 +342,9 @@ function ops.checkExists(C, expression, yesCaseNode, noCaseNode)
 end
 function ops.Printf(C, str, ...)
     local args = {...}
-    return function()
+    return function(C)
         C.CompileConstant(str)
-        callNodes(args)
+        callNodes(args, C)
         C.Compile123("BC_PRINTFN", #args + 1)
     end
 end
@@ -340,15 +357,19 @@ local function subnodeMap(t)
     for _,arg in ipairs(t) do map[arg.name] = arg.node end
     return map
 end
+local function resolveArg(arg, --[[Optional]] C) -- C is not used for leaf nodes
+    if type(arg) == "function" then return arg(C) -- Resolve top-down dependence on compiler object
+    else return assert(arg) end
+end
+local function resolveArgs(args, --[[Optional]] C) -- C is not used for leaf nodes
+    for i,f in ipairs(args) do args[i] = resolveArg(f, C) end
+    return args
+end
 local function leafNode(name)
     return function(...) 
         local args = {...}
-        return function() return { name = name, node = args} end
+        return { name = name, node = args}
     end
-end
-local function resolveArgs(args, --[[Optional]] C) -- C is not used for leaf nodes
-    for i,f in ipairs(args) do args[i] = f(C) end -- Resolve top-down dependence on compiler object
-    return args
 end
 local function parseArgs(name, T, expected, optional, --[[Optional]] C)
     local args = {}
@@ -364,7 +385,7 @@ local function parseArgs(name, T, expected, optional, --[[Optional]] C)
     -- Handle expected
     local opt = {}
     for _, o in ipairs(optional) do
-        if T[o] then opt[o] = assert(T[o]) end
+        if T[o] then opt[o] = T[o] end
     end
     table.insert(args, opt)
     if C then table.insert(args, C) end
@@ -376,10 +397,9 @@ function NodeBuilder:init(name, expected, optional, func)
 end
 function NodeBuilder:__call(...)
     local args = pack(...)
-    print("Call1 ", self.name)
     return function(C)
         resolveArgs(args, C)
-        self.func(parseArgs(self.name, subnodeMap(args), self.expected, self.optional, C))
+        return self.func(parseArgs(self.name, subnodeMap(args), self.expected, self.optional, C))
     end
 end
 
@@ -387,11 +407,13 @@ end
 -- Goal API
 --------------------------------------------------------------------------------
 local builders = {
-NodeBuilder ("CheckExists", --[[Must have:]] {"Var"}, --[[Optional:]] {"Yes", "No"},
-    function(Var, opts, C)
+NodeBuilder ("CheckExists", --[[Must have:]] {"Expr"}, --[[Optional:]] {"Yes", "No"},
+    function(Expr, opts, C)
+        local yes,no = NBlock(C, opts.Yes), NBlock(C, opts.No)
         if not opts.Yes and not opts.No then
             error("'CheckExists' must have at least one clause.") 
         end
+        return ops.checkExists(C, Expr[1](C), yes, no)
     end)
 }
 
@@ -401,7 +423,9 @@ function Event(...)
     for k, v in pairs(opts) do
         return function(...)
             local compiler = Compiler(opts[k][1])
-            compiler.AddNodeRefs(pack(...))
+            for _, p in ipairs(pack(...)) do 
+                table.insert(compiler.code.block, p)
+            end
             compiler.CompileAll()
             goal.SetEvent(k, compiler.bytes)
         end
@@ -427,6 +451,19 @@ for _,builder in ipairs(builders) do
     end
 end
 
+function Var(var)
+    local parts = var:split(".")
+    if parts[#parts]:match("^%l") then
+        return function(C)
+            return ops.stringPush(assert(C), var)
+        end
+    else
+        return function(C)
+            return ops.objectPush(assert(C), var)
+        end
+    end
+end
+
 -- Makes AST refs look kind-of like lua refs:
 local ObjectProxy = class()
 function ObjectProxy:__index(k) return ObjectProxy(self.repr .. '.' .. k) end
@@ -443,8 +480,11 @@ end
 for k,v in pairs(ops) do
     _G[k] = function(...)
         local args = {...}
-        return function(compiler)
-            return ops[k](compiler, unpack(args))
+        return function(C) 
+            return function() 
+                local val = ops[k](C, unpack(args))
+                return val 
+            end 
         end
     end
 end
