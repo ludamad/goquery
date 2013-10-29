@@ -1,3 +1,5 @@
+local type = _G.type -- DSL redefines 'type'
+
 --- Get a  human-readable string from a lua value. The resulting value is generally valid lua.
 -- Note that the paramaters should typically not used directly, except for perhaps 'packed'.
 -- @param val the value to pretty-print

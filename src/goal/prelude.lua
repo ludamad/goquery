@@ -2,6 +2,12 @@
 -- Lua configuration, basic configuration of the Lua VM to make life easier.
 --------------------------------------------------------------------------------
 
+local type = _G.type -- DSL redefines 'type'
+typeof = type -- Alias
+
+-- Keep this around for now, for convenience. Remove for 1.0.
+dofile "src/tests/util.lua"
+
 -- Simple type system:
 function class()
     local type = {}
@@ -23,9 +29,42 @@ function class()
     return type
 end
 
-function table.contains(t, val)
-    for i=1,#t do if t[i] == val then return true end end
-    return false
+local function do_nothing() end
+
+local function pack(...)
+    local t = {}
+    for i=1,select("#", ...) do
+        local val = assert(select(i, ...), "Found nil value at ".. i)
+        table.insert(t, val)
+    end
+    return t
+end
+
+function table.key_list(t)
+    local keys = {}
+    for k, _ in pairs(t) do table.insert(keys, k) end
+    return keys
+end
+function table.index_of(t, val)
+    for k,v in pairs(t) do if v == val then return k end end
+    return nil
+end
+
+local function ipairsAll(...)
+    local tabs, ret = pack(...), {}
+    for _, tab in ipairs(tabs) do for _, v in ipairs(tab) do table.insert(ret, v) end end
+    return ipairs(ret)
+end
+
+local function pairsAll(...)
+    local ret = {}
+    for i=1,select("#", ...) do
+        for k, v in pairs(select(i, ...) or {}) do
+            assert(not ret[k], "Tables passed to pairsAll are not mutually exclusive!")
+            ret[k] = v
+        end
+    end
+    return pairs(ret)
 end
 
 function string:split(sep)
@@ -93,7 +132,7 @@ end
 goal.DefineTuple = gsym.DefineTuple
 
 --------------------------------------------------------------------------------
--- Bytecode compiler
+-- Stack allocator. Provides efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
 
 local ObjectRef = class()
@@ -106,7 +145,7 @@ function ObjectRef:init(name, --[[Optional]] parent, --[[Optional]] previous)
     self.allocSize, self.stackIndex = false, false
 end
 
-function ObjectRef:Lookup(key, ...)
+function ObjectRef:Lookup(key)
     local var = self.memberMap[key]
     if not var then
         var = ObjectRef(key, self, self.members[#self.members])
@@ -114,7 +153,7 @@ function ObjectRef:Lookup(key, ...)
         self.memberMap[key] = var
     end
     -- Forward along if there are more arguments:
-    return (...) and var.Lookup(...) or var
+    return var
 end
 
 -- Only makes sense on root object ref, aka the stack
@@ -128,14 +167,16 @@ function ObjectRef:Pop(n)
 end
 
 function ObjectRef:ResolveIndex()
-    if self.stackIndex then return self.stackIndex end
-    if self.previous then
-        return self.previous.ResolveIndex() + self.previous.ResolveSize()
+    if self.stackIndex then
+        -- Cached, return 
+    elseif self.previous then
+        self.stackIndex = self.previous.ResolveIndex() + self.previous.ResolveSize()
     elseif self.parent then
-        return self.parent.ResolveIndex() + 1
+        self.stackIndex = self.parent.ResolveIndex() + 1
     else
-        return -1 -- Base case, the root is a pseudo-node
+        self.stackIndex = -1 -- Base case, the root is a pseudo-node
     end
+    return self.stackIndex
 end
 
 -- Figure out how 'deep' we are, the elements at the end of a given stack frame start at 0
@@ -154,40 +195,24 @@ function ObjectRef:__tostring()
     )
 end
 
--- Program AST
-local NBlock = class()
-goal.NBlock = NBlock
-function NBlock:init()
-    self.block = {}
-end
-function NBlock:Add(code) 
-    table.insert(self.block, code)
-end
-function NBlock:__call(C)
-    for _, child in ipairs(self.block) do child(C) end
-end
-
-local ops = {}
-function ops.Print(C, str)
-    local idx = C.ResolveConstant(str)
-    return function()
-        C.CompileConstant(str)
-        C.Compile123("BC_PRINTFN", 1)
-    end
-end
+--------------------------------------------------------------------------------
+-- Bytecode compiler
+--------------------------------------------------------------------------------
 
 local Compiler = class()
 goal.Compiler = Compiler
+local NBlock -- defined in next section
 
-function Compiler:init(--[[Optional]] bc)
+function Compiler:init(contextVar, --[[Optional]] bc)
     self.bytes = bc or goal.NewBytecodeContext()
     self.objects = ObjectRef()
+    if contextVar then
+        self.ResolveObject(contextVar:split("."))
+    end
     self.constantIndex = 0
     self.constantMap = {}
     self.code = NBlock()
 end
-
-dofile "src/tests/util.lua"
 
 local function numToBytes(num, n)
     local bytes = {}
@@ -198,28 +223,29 @@ local function numToBytes(num, n)
     return unpack(bytes)
 end
 
-function Compiler:Compile123(code, arg)
+function Compiler:Compile123(code, arg, --[[Optional]] idx)
     local b1,b2,b3 = numToBytes(arg, 3)
-    return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2,b3))
+    if not idx then print("Compiling123 ", code, arg) end
+    local bc = goal.Bytecode(goal[code], b1,b2,b3)
+    if idx then 
+        self.bytes.SetBytecode(idx, bc)
+    else 
+        self.bytes.PushBytecode(bc)
+    end
 end
-
 function Compiler:Compile12_3(code, arg1, arg2)
     local b1,b2 = numToBytes(arg1, 2)
+    print("Compiling12_3 ", code, arg1, arg2 )
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
-
-function Compiler:CompileAll()
-    self.code(self)
+function Compiler:AddNode(node) self.code.Add(node) end 
+function Compiler:AddNodeRefs(nodes)
+    for _, n in ipairs(nodes) do self.AddNode(n(self)) end
 end
-
+function Compiler:CompileAll() self.code(self) end
 function Compiler:CompileConstant(constant)
     self.Compile123("BC_STRING_CONSTANT", self.ResolveConstant(constant))
 end
-
-function Compiler:CompileVar(object, var)
-    self.Compile12_3("BC_OBJECT_PUSH", var.ResolveIndex(), goal["SMEMBER_" + var])
-end
-
 function Compiler:ResolveConstant(constant)
     local index = self.constantMap[constant]
     if not index then
@@ -230,10 +256,8 @@ function Compiler:ResolveConstant(constant)
     end
     return index
 end
-
-function Compiler:ResolveString(parts)
-    local parts = name:split(".")
-end
+function Compiler:CompilePlaceholder() return self.bytes.PushBytecode(goal.Bytecode(0,0,0,0)) end -- Placeholder for jump
+function Compiler:BytesSize() return self.bytes.BytecodeSize() end -- Placeholder for jump
 function Compiler:ResolveObject(parts)
     local node = self.objects
     for _, part in pairs(parts) do
@@ -242,10 +266,180 @@ function Compiler:ResolveObject(parts)
     end
     return node
 end
+function Compiler:ParseVariable(str)
+    local parts = str:split(".")
+    local name = parts[#parts] ; parts[#parts] = nil
+--    assert(name:match("^%l%w+$"), "Expecting a string reference! (got \"" .. table.concat(parts, ".") .. "\")")
+    local obj = self.ResolveObject(parts)
+    return obj, name
+end
+
+--------------------------------------------------------------------------------
+-- Program AST. The basic building blocks of the DSL
+--------------------------------------------------------------------------------
+
+NBlock = class()
+goal.NBlock = NBlock
+function NBlock:init(--[[Optional]] block)
+    self.block = block or {}
+end
+function NBlock:Add(code) 
+    table.insert(self.block, code)
+end
+local function callNodes(nodes)
+    for _, child in ipairs(nodes) do child() end
+end
+function NBlock:__call()
+    callNodes(self.block)
+end
+
+ops = {}
+function ops.Print(C, str)
+    return function()
+        C.CompileConstant(str)
+        C.Compile123("BC_PRINTFN", 1)
+    end
+end
+function ops.stringPush(C, expression)
+    local obj, name = C.ParseVariable(expression)
+    local idx = obj.ResolveIndex()
+    return function() 
+        C.Compile12_3("BC_STRING_PUSH", idx, goal["SMEMBER_" .. name])
+    end
+end
+
+function ops.checkExists(C, expression, yesCaseNode, noCaseNode)
+    local obj, name = C.ParseVariable(expression)
+    local idx = obj.ResolveIndex()
+    return function()
+        C.Compile12_3("BC_OBJECT_PUSH", idx, goal["OMEMBER_" .. name])
+        local jumpToNoCaseStart = C.CompilePlaceholder()
+        yesCaseNode()
+        local jumpToNoCaseEnd = C.CompilePlaceholder()
+        local noCaseStart = C.BytesSize()
+        noCaseNode()
+        local noCaseEnd = C.BytesSize()
+        C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
+        C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
+    end
+end
+function ops.Printf(C, str, ...)
+    local args = {...}
+    return function()
+        C.CompileConstant(str)
+        callNodes(args)
+        C.Compile123("BC_PRINTFN", #args + 1)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- Helper for defining the Goal API functions, which build nodes of the AST
+--------------------------------------------------------------------------------
+local function subnodeMap(t)
+    local map = {}
+    for _,arg in ipairs(t) do map[arg.name] = arg.node end
+    return map
+end
+local function leafNode(name)
+    return function(...) 
+        local args = {...}
+        return function() return { name = name, node = args} end
+    end
+end
+local function resolveArgs(args, --[[Optional]] C) -- C is not used for leaf nodes
+    for i,f in ipairs(args) do args[i] = f(C) end -- Resolve top-down dependence on compiler object
+    return args
+end
+local function parseArgs(name, T, expected, optional, --[[Optional]] C)
+    local args = {}
+    for _, e in ipairs(expected) do
+        assert(T[e], ("Expected '%s' while parsing '%s'!"):format(e, name))
+        table.insert(args, T[e])
+    end
+    for k, v in pairs(T) do
+        if not table.index_of(expected, k) and not table.index_of(optional, k) then
+            assert(T[k], ("'%s' is not valid inside '%s!'"):format(k, name))
+        end
+    end
+    -- Handle expected
+    local opt = {}
+    for _, o in ipairs(optional) do
+        if T[o] then opt[o] = assert(T[o]) end
+    end
+    table.insert(args, opt)
+    if C then table.insert(args, C) end
+    return unpack(args)
+end
+local NodeBuilder = class()
+function NodeBuilder:init(name, expected, optional, func)
+    self.name, self.expected, self.optional, self.func = name, expected, optional, func
+end
+function NodeBuilder:__call(...)
+    local args = pack(...)
+    print("Call1 ", self.name)
+    return function(C)
+        resolveArgs(args, C)
+        self.func(parseArgs(self.name, subnodeMap(args), self.expected, self.optional, C))
+    end
+end
 
 --------------------------------------------------------------------------------
 -- Goal API
 --------------------------------------------------------------------------------
+local builders = {
+NodeBuilder ("CheckExists", --[[Must have:]] {"Var"}, --[[Optional:]] {"Yes", "No"},
+    function(Var, opts, C)
+        if not opts.Yes and not opts.No then
+            error("'CheckExists' must have at least one clause.") 
+        end
+    end)
+}
+
+local events = {"FuncDecl"}
+function Event(...)
+    local opts = subnodeMap(resolveArgs(pack(...)))
+    for k, v in pairs(opts) do
+        return function(...)
+            local compiler = Compiler(opts[k][1])
+            compiler.AddNodeRefs(pack(...))
+            compiler.CompileAll()
+            goal.SetEvent(k, compiler.bytes)
+        end
+    end
+end
+local analyzeExpected, analyzeOptional = {"Files"}, {}
+function Analyze(...)
+    local args = resolveArgs(pack(...))
+    local Files, opt = parseArgs("Analyze", subnodeMap(args), analyzeExpected, analyzeOptional)
+    ColorPrint("36;1", "-- ANALYZING:\n")
+    goal.GlobalSymbolContext.AnalyzeAll(Files)
+    ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+end
+
+-- Derive simple nodes based on complex nodes
+for _,leaf in ipairsAll(analyzeExpected, analyzeOptional, events) do
+    _G[leaf] = leafNode(leaf)
+end
+for _,builder in ipairs(builders) do
+    _G[builder.name] = builder
+    for _, leafname in ipairsAll(builder.expected, builder.optional) do 
+        _G[leafname] = leafNode(leafname)
+    end
+end
+
+-- Makes AST refs look kind-of like lua refs:
+local ObjectProxy = class()
+function ObjectProxy:__index(k) return ObjectProxy(self.repr .. '.' .. k) end
+function ObjectProxy:__call() return Var(self.repr) end
+function ObjectProxy:init(repr) self.repr = repr end
+
+for k,v in pairs(goal) do
+    if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then 
+        k = k:sub(#"MEMBER_" + 2)
+        _G[k] = ObjectProxy(k)
+    end
+end
+
 for k,v in pairs(ops) do
     _G[k] = function(...)
         local args = {...}
@@ -254,95 +448,3 @@ for k,v in pairs(ops) do
         end
     end
 end
-
-local events = {"FuncDecl"}
-for _,k in ipairs(events) do
-    _G[k] = function(name) return k, name end
-end
-
-function Event(type, name)
-    return function(...)
-        local compiler = Compiler()
-        local nodes = {...} 
-        for _,node in ipairs(nodes) do
-            compiler.code.Add(node(compiler))
-        end
-        compiler.CompileAll()
-        goal.SetEvent(type, compiler.bytes)
-    end
-end
-
-function AnalyzeAll(fnames)
-    ColorPrint("36;1", "-- ANALYZING:\n")
-    goal.GlobalSymbolContext.AnalyzeAll(fnames)
-    ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
-end
-
-
-local NodeRef = class()
-local function pack_ref(...) return {...} end
-function NodeRef:init(key, --[[Optional]] f, --[[Optional]] expected, --[[Optional]] optional)
-    self.key, self.f = key, f
-    self.subnodes = {}
-    self.expected = expected or false
-    self.optional = optional or {}
-end
-function NodeRef:__call(...)
-    if not self.expected then
-        return {self.key, self.simpleResolve(...)}
-    end
-
-    for i=1,select("#", ...) do
-    	local arg = assert(select(i, ...), "Received nil while constructing program tree!")
-        self.subnodes[arg[1]] = arg[2]
-    end
-    return self.complexResolve(...)
-end
-function NodeRef:simpleResolve(...)
-    return self.f(...)
-end
-
-function NodeRef:complexResolve()
-    local T = self.subnodes
-    for _, e in ipairs(self.expected) do
-        assert(T[e], "Expected " .. e .. "!")
-    end
-    local args = {}
-    for k, v in pairs(T) do
-        if not table.contains(self.expected, k) and not table.contains(self.optional, k) then
-            assert(T[k], "Did not expect " .. k .. "!")
-        end
-    end
-    -- Handle expected
-    for _, e in ipairs(self.expected) do
-        table.insert(args, assert(T[e]))
-    end
-    -- Handle optional
-    local optional = {}
-    for _, o in ipairs(self.optional) do
-        if T[o] then optional[o.key] = assert(T[o]) end
-    end
-    table.insert(args, optional)
-    pretty(args)
-    return self.f(unpack(args))
-end
-
-local events = {"Analyze"}
-for _,k in ipairs(events) do
-    _G[k] = function(name) return k, name end
-end
-
-local base = {}
-local function dslWrap(k, expect, opt) _G[k] = NodeRef(k, base[k] or pack_ref, expect or nil, opt or nil) end
-local function dslWrapSimple(fnames)
-    for _, fname in ipairs(fnames) do dslWrap(fname, nil, nil) end
-end
-
-function base.Analyze(Files, opt)
-    ColorPrint("36;1", "-- ANALYZING:\n")
-    goal.GlobalSymbolContext.AnalyzeAll(Files)
-    ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
-end
-
-dslWrap("Analyze", {"Files"}, {"Run"})
-dslWrapSimple {"Files", "Run"}

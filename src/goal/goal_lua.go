@@ -6,6 +6,7 @@ import (
 	"github.com/stevedonovan/luar"
 	"io/ioutil"
 	"strings"
+	"runtime/debug"
 )
 
 // Exposes the (very) low level GoAL API.
@@ -91,7 +92,10 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	luar.Register(L, namespace, _API)
 	luar.Register(L, "", luar.Map{"ColorPrint": colorPrint})
 	//	LuaDoString(L, _PRELUDE_SOURCE)
-	LuaDoFile(L, "src/goal/prelude.lua")
+	ok := LuaDoFile(L, "src/goal/prelude.lua")
+	if !ok {
+		panic("Prelude is damaged.")
+	} 
 	return L
 }
 
@@ -101,8 +105,12 @@ func errorReportingCall(L *lua.State) bool {
 		if r := recover(); r != nil {
 			fmt.Print(colorify("An error has occurred!\n", "31;1"))
 			fmt.Print(colorify(r, "31"))
+			if strings.Contains(r.(*lua.LuaError).Error(), "runtime error") {
+				fmt.Printf("\nFull Go Stack:\n%s", colorify(debug.Stack(), "35;1"))
+			}
 			traceback, _ := luar.NewLuaObjectFromName(L, "debug.traceback").Call("")
-			fmt.Print(colorify(L.ToString(-1), "31;1"))
+			errStr := L.ToString(-1)
+			fmt.Print(colorify(errStr, "31;1"))
 			fmt.Print(colorify(traceback, "33;1"), "\n")
 			success = false
 		}

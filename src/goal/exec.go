@@ -93,6 +93,7 @@ func (bc BytecodeExecContext) execOne() {
 		if bc.peekString(1) == "" {
 			bc.Index = code.bytes1to3()
 		}
+		bc.popStrings(1)
 	case BC_JMP_OBJ_ISNIL:
 		if bc.peekObject(1) == nil {
 			bc.Index = code.bytes1to3()
@@ -108,6 +109,11 @@ func (bc BytecodeExecContext) execOne() {
 }
 
 func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objects []interface{}) {
+	// Reset
+	bc.Index = 0
+	bc.popObjects(len(bc.ObjectStack))
+	bc.popStrings(len(bc.StringStack))
+
 	for _, obj := range objects {
 		bc.pushObject(obj)
 	}
@@ -117,7 +123,6 @@ func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbo
 		bcExecContext.execOne()
 	}
 
-	bc.Index = 0
 
 	bc.popObjects(len(objects))
 }

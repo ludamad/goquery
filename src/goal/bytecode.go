@@ -63,8 +63,17 @@ func (bc *BytecodeContext) PushStringConstant(constant string) {
 	bc.StringConstants = append(bc.StringConstants, constant)
 }
 
-func (bc *BytecodeContext) PushBytecode(code Bytecode) {
+func (bc *BytecodeContext) PushBytecode(code Bytecode) int {
 	bc.Bytecodes = append(bc.Bytecodes, code)
+	return len(bc.Bytecodes) - 1 // Return new index
+}
+
+func (bc *BytecodeContext) BytecodeSize() int {
+	return len(bc.Bytecodes)
+}
+
+func (bc *BytecodeContext) SetBytecode(index int, code Bytecode) {
+	bc.Bytecodes[index] = code
 }
 
 func (bc *BytecodeContext) pushLoop(loop LoopContext) {

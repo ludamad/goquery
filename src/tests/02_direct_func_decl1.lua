@@ -8,4 +8,6 @@ goal.SetEvent("FuncDecl", goal.SimpleBytecodeContext(
     }
 ))
 
-AnalyzeAll {"src/tests/sample.go"}
+Analyze (
+    Files "src/tests/sample.go"
+)

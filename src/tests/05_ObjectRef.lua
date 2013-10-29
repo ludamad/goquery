@@ -1,5 +1,7 @@
 dofile "src/tests/util.lua"
 
+local type = typeof -- DSL redefines 'type'
+
 local function make(parent, chain)
     for i,part in ipairs(chain) do
         if type(part) == "table" then

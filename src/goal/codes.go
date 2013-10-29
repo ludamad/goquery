@@ -38,10 +38,10 @@ const (
 	BC_LOAD_TUPLE // Takes <tuple kind>, <key size>, pushes tuple to object stack
 	BC_MAKE_TUPLE // Takes <key size>, pushes a tuple (string vector) onto the object stack
 	BC_TUPLE_STRING_PUSH // Takes <object index>, pushes a string from the tuple onto the string stack
-	BC_JMP_STR_ISEMPTY // Takes <code index>, jumps if the top string index is nil
-	BC_JMP_OBJ_ISNIL // Takes <code index>, jumps if the top object index is nil
+	BC_JMP_STR_ISEMPTY // Takes <code index>, jumps if the top string index is nil. Pops the top element
+	BC_JMP_OBJ_ISNIL // Takes <code index>, jumps if the top object index is nil. Pops the top element
 	BC_JMP // Takes <code index>, jumps unconditionally
-	BC_PRINTFN // Takes <N>, first string is treated as format specifier
+	BC_PRINTFN // Takes <N>, first string is treated as format specifier, pops N
 )
 
 // Object members
