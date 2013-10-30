@@ -46,7 +46,8 @@ const (
 
 // Object members
 const (
-	OMEMBER_Signature = iota
+	OMEMBER_Self = iota // Same as pushing the object at the given index
+	OMEMBER_Signature
 	OMEMBER_Receiver
 )
 

@@ -1,33 +1,32 @@
-TupleSet "methods" (
+DataSet "methods" (
     Fields("name", "type", "receiver_type", "location"),
     Keys("name", "type", "receiver_type")
 )
 
-TupleSet "functions" (
+DataSet "functions" (
     Fields("name", "type", "location"),
     Keys("name", {attr="type", datatype="int"})
 )
 
-TupleSet "interface_reqs" (
+DataSet "interface_reqs" (
     Fields("interface", "name", "type", "location"),
     Keys("interface", "name", "type")
 )
 
-Event(FuncDecl "f") (
-    CheckExists(Expr(Receiver "f"),
-        Yes(
-            SaveTuple( Set "methods", Fields(name "f", type "f", Receiver.type "f", location "f") )
-        ),
-        No (
-            SaveTuple( Set "functions", Fields(name "f", type "f", location "f") )
-        )
-    )
+-- 'Shorter' names
+RequireReceiver = Compose(Require, Receiver)
+RequireNullReceiver = Compose(RequireNull, Receiver)
+ForAllMethods = Take2(Compose(ForAll, Methods))
+
+Event(FuncDecl "f", RequireReceiver("f", As "r")) (
+    Save( DataSet "methods", Fields(name "f", type "f", Receiver.type "f", location "f"))
 )
 
-Event(TypeSpec "t", InterfaceType "i") (
-    ForAll(Methods "i", "m") (
-        SaveTuple( Set "interface_reqs", Fields(name "t", name "m", type "m", location "m"))
-    )
+Event(FuncDecl "f", RequireNullReceiver "f") (
+    Save( DataSet "functions", Fields(name "f", type "f", location "f") )
+)
+Event(TypeSpec "t", InterfaceType "i", ForAllMethods "m") (
+    Save( DataSet "interface_reqs", Fields(name "t", name "m", type "m", location "m"))
 )
 
 Analyze (

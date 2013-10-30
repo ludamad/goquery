@@ -57,7 +57,12 @@ func (bc *BytecodeExecContext) resolveStringMember(objIdx int, memberIdx int) st
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) interface{} {
 	n := bc.ObjectStack[objIdx]
+	if n == nil {
+		return nil
+	}
 	switch memberIdx {
+	case OMEMBER_Self:
+		return n
 	case OMEMBER_Signature:
 		node, ok := n.(*ast.FuncDecl)
 		if !ok {
