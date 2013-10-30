@@ -1,9 +1,45 @@
-Goquery
-=======
+Goquery (tentative repo title)
+-
+
 Undergraduate computer science project at UOIT, year 2013-2014.  
 Goquery intends to be a tool or set of small tools, time permitting.
 
 Currently in progress is a DSL for traversing Go languages.
+
+GoAL: Go Analysis Language
+=
+
+The Go analysis language provides a high-level event based way to manipulate the Go AST. Specifically, it provides a domain-specific way of accessing the [go.ast package](http://golang.org/pkg/go/ast/).
+
+Label nodes
+-
+These Lua functions produce labelled nodes (we will call them **label-nodes**). The label consists of the name of the node, eg 'Fields', and the data consists of the arguments to the function, eg the list of fields as Lua strings. These labelled nodes assemble into a tree, but have no meaning until they bubble up into a *root level function*.
+
+Code defining label-nodes
+-
+There is an internal bytecode for GoAL events. The following label-nodes exist:
+
++ **Printf** C-like printf routine. Only %s is valid currently.
++ **Save** Load from a database. TODO: Document more
++ **Save** Save to a database. TODO: Document more
+
+Code control label-nodes
+-
++ **Case**
++ **If**
++ **IfExists**
+
+Root level functions
+-
++ **Event** Used to define an AST analysis event.  
+    *Called Twice*: Returns a Lua function that takes a 
+    Takes a list of instructions.
+    Returns a Lua function that takes a 
+
++ **Analyze**:
+
+GoAL Implementation
+=
 
 The DSL is implemented using the luar package and builds a small set of bytecode operations:
 
