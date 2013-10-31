@@ -101,7 +101,7 @@ For cases where performance is acceptable, you may dynamically context switch be
 
 + **LuaWrap** Returns a Lua function that, during the running of the event, is passed objects or string objects and returns an object or a string.  
 
-    **Word of Warning: ** The AST **can** be modified, since you have access to all Go reflection (thanks to '[luar](https://github.com/stevedonovan/luar/)') but do note it may render **currently running** DSL code incorrect (namely cache coherency) if it deals with the same data.
+    **Word of Warning:** The AST **can** be modified, since you have access to all Go reflection (thanks to '[luar](https://github.com/stevedonovan/luar/)') but do note it may render **currently running** DSL code incorrect (namely cache coherency) if it deals with the same data.
 
 
 GoAL Implementation Details
