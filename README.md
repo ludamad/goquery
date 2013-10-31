@@ -96,8 +96,9 @@ Note that it **Inject** == **Compose** for all one-argument **Func1**. The recom
 
 Escaping to Lua
 -
-For cases where performance is acceptable, you may dynamically context switch between Lua and back. Basically, you can write arbitrary log in Lua.  
-*(If you are on the fence about performance, be warned the context switch overhead is easy to underestimate.)*  
+For cases where performance is acceptable, you may dynamically context switch between Lua and the GoAL runtime.  
+It is very flexible: you can write arbitrary logic in Lua, store data in Lua variables, store data that affects the definition of future events, etc.  
+Be warned though, if you are on the fence about performance, the context switch overhead is easy to underestimate.
 
 + **LuaWrap** Returns a Lua function that, during the running of the event, is passed objects or string objects and returns an object or a string.  
 
