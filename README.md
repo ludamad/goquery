@@ -54,7 +54,7 @@ Expression nodes evaluate to either complex objects, or strings. Strings are the
 
 Root level functions
 -
-+ **Event** Used to define an AST analysis event. Optional entry conditions can be specified before the code nodes. These entry conditions can assert things about the variables defined.
++ **Event** Used to define an AST analysis event. Optional entry conditions can be specified before the code nodes. These entry conditions can assert things about the variables defined.  
     *General form*: **Event**(Variable definitions and event configuration, see below) (Optional conditional-node-list) (code-node-list)  
     *Example*: **Event**(**FuncDecl** *"f"*) (**Printf** *"Hello World!"*)
 
