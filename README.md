@@ -5,6 +5,11 @@ Goquery intends to be a tool or set of small tools, time permitting.
 
 Currently in progress is a DSL for traversing Go languages.
 
+Disclaimer: 
+-
+
+**What follows is an incomplete and speculative specification for a language still heavily under development. There is no warranty that any described feature actually exists.**
+
 GoAL: Go Analysis Language
 =
 
@@ -76,23 +81,30 @@ New functions
 -
 Goal is extended primarily through Lua.  
 
-Two convenience functions exist to form new functions, the **Compose** and **Inject** meta-functions.  
+Two convenience functions exist to form new functions, the **Compose**, **Inject**, **InjectAll** meta-functions.  
 These two related functions can compose any of the nodes above (*whether or not doing so makes sense*!).
 
-+ **Compose**(function **Func1**, function **Func2**)  
-    Return a new function that applies **Func2** to every parameter, which are then passed in turn to **Func1**.  
++ **Compose**(function **Func1**, function **Func2**)
 
-    *Example*: **IfReceiverExists** = **Compose**(**IfExists**, **Receiver**)  
-    *Example Usage*: **Case**(**IfRecevierExists** "r1") (**Printf** "We have a receiver!")  
-    The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
+    Return a new function that applies **Func2** to all parameters, and passes the result to **Func1**.
 
-+ **Inject**(function **Func1**, function **Func2**)  
-    Return a new function that applies **Func2** to the first parameter, and passes the rest of the parameters unchanged to **Func1**.
+    *Example*: **GetReceiverName** = **Compose**(**name**, **Receiver**)  
+    *Example Usage*: **Printf** ("%s\n", **GetReceiverName** "f")
+
++ **Inject**(function **Func1**, function **Func2**, param N (default first))  
+    Return a new function that applies **Func2** to the Nth parameter, and passes the rest of the parameters unchanged to **Func1**.
 
     *Example*: **IfReceiverExistsAnd** = **Inject**(**And**, **IfReceiverExists**)  
     *Example Usage*: **Case**(**IfRecevierExistsAnd**("r", **True**)) (**Printf** "We have a receiver and true is true!")
 
-Note that it **Inject** == **Compose** for all one-argument **Func1**. The recommended idiom is to always use **Compose** in these cases.
++ **InjectAll**(function **Func1**, function **Func2**)  
+    Return a new function that applies **Func2** to every parameter, which are then passed in turn to **Func1**.  
+
+    *Example*: **IfReceiverExists** = **InjectAll**(**IfExists**, **Receiver**)  
+    *Example Usage*: **Case**(**IfRecevierExists** "r1") (**Printf** "We have a receiver!")  
+    The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
+
+Note that **Inject** == **Compose** == **InjectAll** for all one-argument **Func1**. The recommended idiom is to always use **Compose** in these cases.
 
 Escaping to Lua
 -
