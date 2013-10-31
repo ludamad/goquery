@@ -394,37 +394,32 @@ local function nodes2table(nodes)
     return table
 end
 -- Create a function that simply provides a labelled node
-local function makeLabelNode(label)
-    return function(...) 
-        local args = {...}
-        return { label = label, children = args}
-    end
-end
+local function makeLabelNode(label, ...) return { label = label, children = pack(...)} end
 local function listNode(node) return node.children end
 local function valueNode(node, label) 
     assert(#node.children == 1,
         ("'%s' expects %s parameter."):format(label, #node.children < 1 and "a" or "only one")
     )
 end
-local NodeVisitRules = class()
-function NodeVisitRules:init(label, childWalkers, convertListToTable, transformer)
+local ParseRules = class()
+function ParseRules:init(label, childWalkers, convertListToTable, transformer)
     for sublabel,subtransformer in pairs(childWalkers) do
         if type(subtransformer) == "function" then -- Wrap functions in simple nodes 
-            childWalkers[sublabel] = NodeVisitRules(sublabel, {}, false, subtransformer) 
+            childWalkers[sublabel] = ParseRules(sublabel, {}, false, subtransformer) 
         end
     end
     self.label, self.transformer = label, transformer
     self.childWalkers,self.convertListToTable = childWalkers, convertListToTable
 end
-function NodeVisitRules:Visit(node)
-    if self.label ~= node.label then return end
+function ParseRules:__call(node)
+    if self.label ~= node.label then return nil end
     local transformedNodes, nodeMap = {}, {}
     for c in values(node.children) do
         for cW in values(self.childWalkers) do
             if self.convertListToTable then
-                nodeMap[c.label] = cW.Visit(c)
+                nodeMap[c.label] = cW(c)
             else
-                append(transformedNodes, cW.Visit(c))
+                append(transformedNodes, cW(c))
             end
         end
     end
@@ -433,24 +428,37 @@ end
 --------------------------------------------------------------------------------
 -- Goal API
 --------------------------------------------------------------------------------
-local N = NodeVisitRules -- brevity
+local N = ParseRules -- brevity
 -- 1) Expression nodes
 local expressionNodes = {
-
+    
 }
 -- 2) (Non-control) Statement nodes
 local statementNodes = {
-    
 
-}-- 3) Code conditional nodes
+}
+-- 3) Code conditional nodes
 local conditionNodes = {
 
-}-- 4) Code control nodes
+}
+-- 4) Code control nodes
 local controlNodes = {
 
 }
 
 local allStatementNodes = mergeAll(statementNodes, controlNodes)
+
+local function makeCodeBlock(...)
+    local ret = {}
+    for statement in values(pack(...)) do
+        for sNode in values(allStatementNodes) do
+            local v = sNode.Visit(statement)
+            -- We found a node rule to parse this
+            if v ~= nil then append(v) ; break end
+        end
+    end
+    return ret
+end
 
 -- Root level functions
 local roots = {
@@ -461,11 +469,12 @@ local roots = {
             ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end
     ),
-    N("Event"), { FuncDecl = valueNode }, true,
+    N("Event", { FuncDecl = valueNode }, true,
         function(t)
-            ColorPrint("36;1", "-- ANALYZING:\n")
-            goal.GlobalSymbolContext.AnalyzeAll(t.Files)
-            ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+            return function(...)
+                local cblock = makeCodeBlock(...)
+                
+            end
         end
     )
 }
