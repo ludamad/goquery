@@ -1,6 +1,5 @@
 Goquery (tentative repo title)
 -
-
 Undergraduate computer science project at UOIT, year 2013-2014.  
 Goquery intends to be a tool or set of small tools, time permitting.
 
@@ -11,37 +10,69 @@ GoAL: Go Analysis Language
 
 The Go analysis language provides a high-level event based way to manipulate the Go AST. Specifically, it provides a domain-specific way of accessing the [go.ast package](http://golang.org/pkg/go/ast/).
 
-Labelled nodes
+Labelled nodes:
 -
 These Lua functions produce labelled nodes (we will call them **label-nodes**). The label consists of the name of the node, eg 'Fields', and the data consists of the arguments to the function, eg the list of fields as Lua strings. These labelled nodes assemble into a tree, but have no meaning until they bubble up into a *root level function*.
 
-Code defining labelled nodes
+1) Statement nodes
 -
-There is an internal bytecode for GoAL events. The following label-nodes exist:
-
 + **Printf** C-like printf routine. Only '%s' is valid currently.
-+ **Save** Load from a database. TODO: Document more
++ **Load** Load from a database. TODO: Document more
 + **Save** Save to a database. TODO: Document more
 
-Code control labelled nodes
+2) Code conditional nodes
 -
-+ **Case**
-+ **If**
-+ **IfExists**
++ **IfExists** Evaluate if the expression does not evaluate to a **null** value.  
+    *General form*: 
++ **True**, **False**, **Otherwise** Constants. Note that **Otherwise** is an alias for **True**, for use in **Case** blocks.
++ **And, Or, Xor, NotAnd, NotOr, NotXor, Not**: Standard boolean operators. **Not** only takes one parameter.  
+    *General form*: **{boolean op}** (conditional-node-list)
+
+3) Code control labelled nodes
+-
++ **Case** Perform the first code block whose conditions are met.  
+    *General form*: **Case** (Conditions to meet **1**) (code-node-list **1**) **...** (**Otherwise**) (code-node-list **N**) 
+
+
+
 
 Root level functions
 -
 + **Event** Used to define an AST analysis event.  
-    *Called Twice*: Returns a Lua function that takes a list of code-nodes.  
+    *General form*: **Event**(Node list) (Entry conditions : **) (**Printf** *"Hello World!"*)  
     *Example*: **Event**(**FuncDecl** *"f"*) (**Printf** *"Hello World!"*)
 
-+ **Analyze**:
++ **Analyze**: Evaluate events for a list of files.  
+    *General form*: **Analyze**(**Files** (list of files), label-node-set of optional flags)  
+    *Example*: **Analyze**(**Files** "example.go")
 
-Extending GoAL
+
+
+New functions
 -
-GoAL itself 
+Goal is extended primarily through Lua.  
+Two convenience functions exist to form new functions, the **Compose** and **Inject** meta-functions.  
+These two related functions can compose any of the nodes above (*whether or not doing so makes sense*!).
 
-GoAL Implementation
++ **Compose**(function **Func1**, function **Func2**)  
+    Return a new function that applies **Func2** to every parameter, which are then passed in turn to **Func1**.  
+
+    *Example*: **IfReceiverExists** = **Compose**(**IfExists**, **Receiver**)  
+    *Example Usage*: **Case**(**IfRecevierExists** "r") (**Printf** "We have a receiver!")  
+    The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
+
++ **Inject**(function **Func1**, function **Func2**)  
+    Return a new function that applies **Func2** to the first parameter, and passes the rest of the parameters unchanged to **Func1**.
+
+    *Example*: **IfReceiverExists** = **Compose**(**IfExists**, **Receiver**)  
+    *Example Usage*: **Case**(**IfRecevierExists** "r") (**Printf** "We have a receiver!")  
+    The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
+  
+
+
+
+
+GoAL Implementation Details
 =
 
 The DSL is implemented using the luar package and builds a small set of bytecode operations:

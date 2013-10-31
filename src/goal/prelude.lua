@@ -354,6 +354,7 @@ end
 --------------------------------------------------------------------------------
 local function subnodeMap(t)
     local map = {}
+    pretty(t)
     for _,arg in ipairs(t) do map[arg.name] = arg.node end
     return map
 end
