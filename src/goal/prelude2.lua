@@ -66,19 +66,19 @@ function appendAll(...)
     for tab in values(tabs) do for v in values(tab) do append(ret, v) end end
     return ret
 end
-function ipairsAll(...) return ipairs(appendAll(...)) end
-function valuesAll(...) return values(appendAll(...)) end
-
-function pairsAll(...)
+function mergeAll(...)
     local ret = {}
     for i=1,select("#", ...) do
         for k, v in pairs(select(i, ...) or {}) do
-            assert(not ret[k], "Tables passed to pairsAll are not mutually exclusive!")
+            assert(not ret[k], "Tables passed to mergeAll are not mutually exclusive!")
             ret[k] = v
         end
     end
-    return pairs(ret)
+    return ret
 end
+function pairsAll(...) return pairs(mergeAll(...)) end
+function ipairsAll(...) return ipairs(appendAll(...)) end
+function valuesAll(...) return values(appendAll(...)) end
 
 function string:split(sep)
     local t = {}
@@ -388,40 +388,86 @@ end
 --------------------------------------------------------------------------------
 -- Helpers for defining the Goal API functions, which build nodes of the AST
 --------------------------------------------------------------------------------
-local NodeVisitRules = class()
-function NodeVisitRules:init(label, transformer, --[[Optional]] childWalkers)
-    self.label, self.transformer = label, transformer
-    self.childWalkers = childWalkers or {}
+local function nodes2table(nodes)
+    local table = {}
+    for n in values(nodes) do table[nodes.label] =n end
+    return table
 end
-function NodeVisitRules:Visit(node)
-    if self.label ~= node.label then return end
-    local transformedNodes = {}
-    for c in values(node.children) do
-        for cW in values(self.childWalkers) do append(transformedNodes, cW.Visit(c)) end
-    end
-    return self.transformer(transformedNodes) 
-end
-
 -- Create a function that simply provides a labelled node
-local function labelNodeMaker(label)
+local function makeLabelNode(label)
     return function(...) 
         local args = {...}
         return { label = label, children = args}
     end
 end
-
-local function nodes2map(nodes)
-    local map = {}
-    for n in values(nodes) do map[nodes.label] =n end
-    return map 
+local function listNode(node) return node.children end
+local function valueNode(node, label) 
+    assert(#node.children == 1,
+        ("'%s' expects %s parameter."):format(label, #node.children < 1 and "a" or "only one")
+    )
 end
-
+local NodeVisitRules = class()
+function NodeVisitRules:init(label, childWalkers, convertListToTable, transformer)
+    for sublabel,subtransformer in pairs(childWalkers) do
+        if type(subtransformer) == "function" then -- Wrap functions in simple nodes 
+            childWalkers[sublabel] = NodeVisitRules(sublabel, {}, false, subtransformer) 
+        end
+    end
+    self.label, self.transformer = label, transformer
+    self.childWalkers,self.convertListToTable = childWalkers, convertListToTable
+end
+function NodeVisitRules:Visit(node)
+    if self.label ~= node.label then return end
+    local transformedNodes, nodeMap = {}, {}
+    for c in values(node.children) do
+        for cW in values(self.childWalkers) do
+            if self.convertListToTable then
+                nodeMap[c.label] = cW.Visit(c)
+            else
+                append(transformedNodes, cW.Visit(c))
+            end
+        end
+    end
+    return self.transformer(self.convertListToTable and nodeMap or transformedNodes, self.label)
+end
 --------------------------------------------------------------------------------
 -- Goal API
 --------------------------------------------------------------------------------
+local N = NodeVisitRules -- brevity
+-- 1) Expression nodes
+local expressionNodes = {
+
+}
+-- 2) (Non-control) Statement nodes
+local statementNodes = {
+    
+
+}-- 3) Code conditional nodes
+local conditionNodes = {
+
+}-- 4) Code control nodes
+local controlNodes = {
+
+}
+
+local allStatementNodes = mergeAll(statementNodes, controlNodes)
+
+-- Root level functions
 local roots = {
-    NodeVisitRules("Analyze"),
-    NodeVisitRules("Event")
+    N("Analyze", { Files = listNode }, true, 
+        function(t)
+            ColorPrint("36;1", "-- ANALYZING:\n")
+            goal.GlobalSymbolContext.AnalyzeAll(t.Files)
+            ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+        end
+    ),
+    N("Event"), { FuncDecl = valueNode }, true,
+        function(t)
+            ColorPrint("36;1", "-- ANALYZING:\n")
+            goal.GlobalSymbolContext.AnalyzeAll(t.Files)
+            ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+        end
+    )
 }
 
 function Event(...)
