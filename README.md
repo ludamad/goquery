@@ -14,36 +14,60 @@ Labelled nodes:
 -
 These Lua functions produce labelled nodes (we will call them **label-nodes**). The label consists of the name of the node, eg 'Fields', and the data consists of the arguments to the function, eg the list of fields as Lua strings. These labelled nodes assemble into a tree, but have no meaning until they bubble up into a *root level function*.
 
-1) Statement nodes
+
+1) Expression nodes
+-
+Expression nodes evaluate to either complex objects, or strings. Strings are the main atomic type in GoAL, being a source-code oriented DSL. Complex objects usually but not always refers to members of the [go.ast package](http://golang.org/pkg/go/ast/).
+
++ **Object and string accesses** occur in two forms:  
+    eg, **Receiver**.**type** "f"  
+    or  **type**(**Receiver**("f"))  
+    This second syntax makes object expressions easily composable (See **Compose** below).
+
++ **Eval** Evaluate to the first expression whose conditions are met.  
+    *General form*: **Eval** (Conditions to meet **1**) (expression-node **1**) **...** (**Otherwise**) (expression-node **N**) 
++ **SQLQuery** Returns an SQL query as a loopable object. See **ForAll**.
+
+2) Statement nodes
 -
 + **Printf** C-like printf routine. Only '%s' is valid currently.
 + **Load** Load from a database. TODO: Document more
 + **Save** Save to a database. TODO: Document more
++ **SQLPrint** Prints the result of an SQL query.
 
-2) Code conditional nodes
+3) Code conditional nodes
 -
 + **IfExists** Evaluate if the expression does not evaluate to a **null** value.  
-    *General form*: 
-+ **True**, **False**, **Otherwise** Constants. Note that **Otherwise** is an alias for **True**, for use in **Case** blocks.
+    *General form*: **IfExists** (object-expression-list)
++ **True**, **False**, **Otherwise** Constants. Note that **Otherwise** is an alias for **True**, for use in **Case** and **Eval** blocks.
 + **And, Or, Xor, NotAnd, NotOr, NotXor, Not**: Standard boolean operators. **Not** only takes one parameter.  
     *General form*: **{boolean op}** (conditional-node-list)
 
-3) Code control labelled nodes
+4) Code control labelled nodes
 -
 + **Case** Perform the first code block whose conditions are met.  
     *General form*: **Case** (Conditions to meet **1**) (code-node-list **1**) **...** (**Otherwise**) (code-node-list **N**) 
-
++ **ForAll** Iterate a loopable object. All lists are loopable. Optional entry conditions can be specified before the code nodes.
+    *General form*: **ForAll** (new variable, loopable expression) (Optional conditional-node-list) (code-node-list)
 
 
 
 Root level functions
 -
-+ **Event** Used to define an AST analysis event.  
-    *General form*: **Event**(Node list) (Entry conditions : **) (**Printf** *"Hello World!"*)  
++ **Event** Used to define an AST analysis event. Optional entry conditions can be specified before the code nodes. These entry conditions can assert things about the variables defined.
+    *General form*: **Event**(Variable definitions and event configuration, see below) (Optional conditional-node-list) (code-node-list)  
     *Example*: **Event**(**FuncDecl** *"f"*) (**Printf** *"Hello World!"*)
 
-+ **Analyze**: Evaluate events for a list of files.  
-    *General form*: **Analyze**(**Files** (list of files), label-node-set of optional flags)  
+    Event takes a list of varied arguments:  
+    
+    + Expressions of the form eg (**FuncDecl** "f") define new objects. Any type name from the [go.ast package](http://golang.org/pkg/go/ast/) is valid.  
+    + You can assign names to multiple nodes at once via eg (FuncDecl.Receiver "fd.r") would be the same as defining (FuncDecl "fd") and also setting its receiver to "r".
+    + You can optionally specify a **CaseSet** by name. Only one **Event** with the **CaseSet** name will execute.
+    + You can optionally specify a **EventSet** by name. **EventSet**s are used by **Analyze** to selectively execute **Event**s.
+    + **ForAll** can be embedded, see above.
+
++ **Analyze**: Evaluate events for a list of files. Passing event sets to execute is optional; the global event set will be executed.  
+    *General form*: **Analyze**(**Files** (list of files), (Optional) **EventSets**(list of event sets) )  
     *Example*: **Analyze**(**Files** "example.go")
 
 
@@ -51,6 +75,7 @@ Root level functions
 New functions
 -
 Goal is extended primarily through Lua.  
+
 Two convenience functions exist to form new functions, the **Compose** and **Inject** meta-functions.  
 These two related functions can compose any of the nodes above (*whether or not doing so makes sense*!).
 
@@ -58,18 +83,25 @@ These two related functions can compose any of the nodes above (*whether or not 
     Return a new function that applies **Func2** to every parameter, which are then passed in turn to **Func1**.  
 
     *Example*: **IfReceiverExists** = **Compose**(**IfExists**, **Receiver**)  
-    *Example Usage*: **Case**(**IfRecevierExists** "r") (**Printf** "We have a receiver!")  
+    *Example Usage*: **Case**(**IfRecevierExists** "r1") (**Printf** "We have a receiver!")  
     The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
 
 + **Inject**(function **Func1**, function **Func2**)  
     Return a new function that applies **Func2** to the first parameter, and passes the rest of the parameters unchanged to **Func1**.
 
-    *Example*: **IfReceiverExists** = **Compose**(**IfExists**, **Receiver**)  
-    *Example Usage*: **Case**(**IfRecevierExists** "r") (**Printf** "We have a receiver!")  
-    The new function takes any amount of objects, and evaluates if all of their receivers are not **null**.  
-  
+    *Example*: **IfReceiverExistsAnd** = **Inject**(**And**, **IfReceiverExists**)  
+    *Example Usage*: **Case**(**IfRecevierExistsAnd**("r", **True**)) (**Printf** "We have a receiver and true is true!")
 
+Note that it **Inject** == **Compose** for all one-argument **Func1**. The recommended idiom is to always use **Compose** in these cases.
 
+Escaping to Lua
+-
+For cases where performance is acceptable, you may dynamically context switch between Lua and back. Basically, you can write arbitrary log in Lua.  
+*(If you are on the fence about performance, be warned the context switch overhead is easy to underestimate.)*  
+
++ **LuaWrap** Returns a Lua function that, during the running of the event, is passed objects or string objects and returns an object or a string.  
+
+    **Word of Warning: ** The AST **can** be modified, since you have access to all Go reflection (thanks to '[luar](https://github.com/stevedonovan/luar/)') but do note it may render **currently running** DSL code incorrect (namely cache coherency) if it deals with the same data.
 
 
 GoAL Implementation Details
