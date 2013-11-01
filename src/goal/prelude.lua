@@ -318,7 +318,7 @@ end
 function goal.Compile(varname, code)
     pretty(varname, code)
     local c = Compiler(varname)
-    for n in values(nodes) do self.code.Add(n) end
+    for n in values(code) do c.code.Add(n) end
     return c.bytes
 end
 
@@ -350,12 +350,6 @@ function NBlock:__call(C)
 end
 
 ops = {}
-local function codeNodeTransform(node)
-    return function(C) 
-        assert(ops[node.label], ("'%s' is not a valid code node!"):format(node.label))
-        return ops[node.label](C, unpack(node.values))
-    end
-end
 function ops.Print(C, str)
     return function()
         C.CompileConstant(str)
@@ -386,11 +380,12 @@ function ops.Printf(C, str, ...)
     end
 end
 
-function ops.Var(var)
+local exprs = {}
+function exprs.Var(var)
     local parts = var:split(".")
     local isString = parts[#parts]:match("^%l")
     -- Choose with value pushed to use:
-    return Curry((isString and ops.stringPush or ops.objectPush), var, 2)
+    return Curry((isString and exprs.stringPush or exprs.objectPush), var, 2)
 end
 
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
@@ -398,34 +393,17 @@ local VarBuilder = class()
 function VarBuilder:init(repr) self.repr = repr end
 function VarBuilder:__index(k) return VarBuilder(self.repr .. '.' .. k) end
 function VarBuilder:__call(k)
-    if type(k) == "string" then return ops.Var(k .. "." .. self.repr) end
-    return ops.Var(self.repr .. k.repr)
+    if type(k) == "string" then return exprs.Var(k .. "." .. self.repr) end
+    return exprs.Var(self.repr .. k.repr)
 end
-
-Var, Self = ops.Var, ops.Var
 
 for k,v in pairs(goal) do
     if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then 
         k = k:sub(#"MEMBER_" + 2)
-        ops[k] = VarBuilder(k)
+        _G[k] = VarBuilder(k)
     end
 end
 
--- AST nodes that don't map as nicely as those in 'ops':
-
-local function compileCheckExists(C, expression, yesCaseNode, noCaseNode)
-    return function()
-        expression(C)
-        local jumpToNoCaseStart = C.CompilePlaceholder()
-        yesCaseNode(C)
-        local jumpToNoCaseEnd = C.CompilePlaceholder()
-        local noCaseStart = C.BytesSize()
-        noCaseNode(C)
-        local noCaseEnd = C.BytesSize()
-        C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
-        C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
-    end
-end
 --------------------------------------------------------------------------------
 -- Helpers for defining the Goal API functions, which build nodes of the AST
 --------------------------------------------------------------------------------
@@ -439,19 +417,21 @@ local function makeLabelNode(label, values) return { label = label, values = val
 local function simpleNode(label, ...) return makeLabelNode(label, pack(...)) end
 local function listNode(node) return node.values end
 local function valueNode(node) 
-    assert(#node.values == 1,
-        ("'%s' expects %s parameter."):format(node.label, #node.values < 1 and "a" or "only one")
-    )
+    assert(#node.values == 1, ("'%s' expects %s parameter."):format(node.label, #node.values < 1 and "a" or "only one"))
+    return node.values[1]
 end
 local NodeTransformer = class()
 function NodeTransformer:init(label, childWalkers, convertListToTable, transformer)
-    for sublabel,subtransformer in pairs(childWalkers or {}) do
-        if type(subtransformer) == "function" then -- Wrap functions in simple nodes 
-            append(childWalkers, NodeTransformer(sublabel, nil, false, subtransformer)) 
+    self.childWalkers = childWalkers and {} or false
+    if childWalkers then
+        for sublabel,subtransformer in pairs(childWalkers or {}) do
+            if type(subtransformer) == "function" then -- Wrap functions in simple nodes 
+                append(self.childWalkers, NodeTransformer(sublabel, nil, false, subtransformer)) 
+            else append(self.childWalkers, subtransformer) end
         end
     end
     self.label, self.transformer = label, transformer
-    self.childWalkers,self.convertListToTable = childWalkers or false, convertListToTable
+    self.convertListToTable = convertListToTable
 end
 function NodeTransformer:Apply(labelNode)
     if not self.childWalkers then -- Simple case 
@@ -485,11 +465,47 @@ end
 -- Goal API
 --------------------------------------------------------------------------------
 
+local NT = NodeTransformer -- brevity
+
+local opNodes -- All the statement nodes possible
+
+local function codeNodeTransform(node) return function(C) 
+    assert(opNodes[node.label], ("'%s' is not a valid code node!"):format(node.label))
+    return opNodes[node.label](C, unpack(node.values))
+end end
+
+local function makeExpr(...) 
+    assert(select('#',...) == 1)
+    local ex = ... ; return function(C) pretty(ex) ; return exprs[ex.label](C, unpack(ex.values)) end 
+end
+
 local function makeCodeBlock(...)
     return Map(codeNodeTransform, pack(...))
 end
 
-local NT = NodeTransformer -- brevity
+-- Less easy to define operators:
+local specialOps = {
+    NT("CheckExists", { Expr = makeExpr, Yes = makeCodeBlock, No = makeCodeBlock }, true, 
+        function(t)
+            pretty("CheckExists",t)
+         return function(C)
+            pretty(t)
+            t.values.Expr(C)
+            local jumpToNoCaseStart = C.CompilePlaceholder()
+            yesCaseNode(C)
+            local jumpToNoCaseEnd = C.CompilePlaceholder()
+            local noCaseStart = C.BytesSize()
+            noCaseNode(C)
+            local noCaseEnd = C.BytesSize()
+            C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
+            C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
+        end end
+    )
+}
+
+opNodes = mergeAll(ops)
+for op in values(specialOps) do opNodes[op.label] = op end
+
 -- Root level functions
 local roots = {
     NT("Analyze", { Files = listNode }, true, 
@@ -506,14 +522,13 @@ local roots = {
         end
     )
 }
-
-for root in values(roots) do
-    for label in root.AllLabelValues() do
-        _G[label] = Curry(simpleNode, label)
+-- Expose API
+for nt in valuesAll(roots, specialOps) do 
+    for label in nt.AllLabelValues() do
+        _G[label] = Curry(simpleNode, label) 
     end
-    _G[root.label] = root.__call -- Bound method
 end
-
-for label,v in pairs(ops) do
+for root in values(roots) do _G[root.label] = root end
+for label,v in pairsAll(opNodes, exprs) do
     _G[label] = Curry(simpleNode, label)
 end
