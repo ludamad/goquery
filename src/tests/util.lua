@@ -72,7 +72,12 @@ end
 function pretty(...)
     local args = {}
     for i=1,select("#", ...) do
-        args[i] = pretty_tostring_compact(select(i, ...)) 
+        if type(args[i]) == "function" then
+            args[i] = pretty_tostring_compact(debug.getinfo(select(i, ...)))
+        else
+            args[i] = pretty_tostring_compact(select(i, ...))
+        end 
     end
     print(unpack(args))
 end
+

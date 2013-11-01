@@ -1,17 +1,10 @@
 local C
-for k, v in pairs(ops) do -- expose nodes
+for k, v in pairsAll(goal.SNodes, goal.ENodes) do -- expose nodes
     _G[k] = function(...) return v(C, ...) end
 end
 
 local function Test(...)
-    for v in values {...} do
-        C.code.Add(
-            Printf("FuncDecl: Found %s '%s' at '%s'\n", 
-                stringPush "FD.type", stringPush "FD.name", stringPush "FD.location"
-            )
-        )
-    end
-    C.CompileAll()
+    C.AddNodes({...}) ; C.CompileAll()
     goal.SetEvent("FuncDecl", C.bytes)
     Analyze (
         Files "src/tests/sample.go"
@@ -28,25 +21,25 @@ Test(
     )
 )
 
--- Case 2
-C = goal.Compiler "FD"
-Test(
-    checkExists(
-        objectPush "FD.Receiver",
-        Print "Yes\n",
-        Print "No\n"
-    )
-)
--- Case 3
-C = goal.Compiler "FD"
-Test(
-    checkExists(
-        objectPush "FD.Receiver",
-        Printf("FuncDecl: Function '%s' has receiver type '%s'.\n",
-           stringPush "FD.name", stringPush "FD.Receiver.type"
-        ),
-        Printf("FuncDecl: Function '%s' has no receiver type.\n",
-           stringPush "FD.name"
-        )
-    )
-)
+---- Case 2
+--C = goal.Compiler "FD"
+--Test(
+--    checkExists(
+--        objectPush "FD.Receiver",
+--        Print "Yes\n",
+--        Print "No\n"
+--    )
+--)
+---- Case 3
+--C = goal.Compiler "FD"
+--Test(
+--    checkExists(
+--        objectPush "FD.Receiver",
+--        Printf("FuncDecl: Function '%s' has receiver type '%s'.\n",
+--           stringPush "FD.name", stringPush "FD.Receiver.type"
+--        ),
+--        Printf("FuncDecl: Function '%s' has no receiver type.\n",
+--           stringPush "FD.name"
+--        )
+--    )
+--)
