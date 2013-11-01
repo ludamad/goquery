@@ -6,8 +6,8 @@ typeof = type -- Alias
 -- Keep this around for now, for convenience. Remove for 1.0.
 dofile "src/tests/util.lua"
 -- Simple type system:
-function class()
-    local type = {}
+function class(--[[Optional]] name)
+    local type = {name = name}
     setmetatable(type, {
         __call = function(self, ...)
             local val = setmetatable({}, type)
@@ -21,10 +21,15 @@ function class()
             self[k] = closure -- Cache it for next time
             return closure
         end
-        error(("Class object '%s': Cannot read '%s', member does not exist!\n"):format(tostring(self), tostring(k)))
+        error(("'%s': Cannot read '%s', member does not exist!\n"):format(tostring(self), tostring(k)))
+    end
+    function type:__tostring() -- Default
+        if type.name then return ("(Class %s)"):format(type.name) end
+        local srcInfo = debug.getinfo(type.init) ; return ("(Class %s:%s)"):format(srcInfo.source, srcInfo.linedefined)
     end
     return type
 end
+local function assertAll(...) for v in values {...} do assert(v) end end
 local append = table.insert
 local function softAppend(t,v) if v then append(t,v) end end
  -- This works because pairs returns (next, k)
@@ -59,17 +64,19 @@ function appendAll(...)
     for tab in values(tabs) do for v in values(tab) do append(ret, v) end end
     return ret
 end
-function mergeAll(...)
+local function mergeAllMake(overwriting) return function(...)
     local ret = {}
     for i=1,select("#", ...) do
         for k, v in pairs(select(i, ...) or {}) do
-            assert(not ret[k], "Tables passed to mergeAll are not mutually exclusive, share " .. k .. "!")
+            if not overwriting then assert(not ret[k], "Tables passed to mergeAll are not mutually exclusive, share " .. k .. "!") end
             ret[k] = v
         end
     end
     return ret
-end
+end end
+mergeAll,mergeAllOverwriting = mergeAllMake(false),mergeAllMake(true)
 function pairsAll(...) return pairs(mergeAll(...)) end
+function pairsAllOverwriting(...) return pairs(mergeAllOverwriting(...)) end
 function ipairsAll(...) return ipairs(appendAll(...)) end
 function valuesAll(...) return values(appendAll(...)) end
 -- Forbid access to undefined globals
@@ -82,8 +89,8 @@ setmetatable(goal, {__index = function(self, k) error( ("'goal.%s' does not exis
 function Map(f,list) 
     local newList = {} ; for v in values(list) do softAppend(newList, f(v)) end ; return newList
 end
-local function mapValues(f, list) return unpack(Map(f, list)) end
-local function varargMap(f,...) return mapValues(f, pack(...)) end
+local function mapValues(f, list) return values(Map(f, list)) end
+local function varargMap(f,...) return unpack(Map(f, pack(...))) end
 function Compose(f,g) return function(...) 
     return f(g(...))
 end end
@@ -123,7 +130,7 @@ goal.DefineTuple = gsym.DefineTuple
 --------------------------------------------------------------------------------
 -- Stack allocator. Provides efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
-local ObjectRef = class() ; goal.ObjectRef = ObjectRef
+local ObjectRef = class "ObjectRef" ; goal.ObjectRef = ObjectRef
 function ObjectRef:init(name, --[[Optional]] parent, --[[Optional]] previous)
     self.name = name ; self.members, self.memberMap = {}, {}
     self.parent, self.previous = parent or false, previous or false
@@ -164,7 +171,7 @@ end
 --------------------------------------------------------------------------------
 -- Bytecode compiler
 --------------------------------------------------------------------------------
-local Compiler = class() ; goal.Compiler = Compiler
+local Compiler = class "Compiler" ; goal.Compiler = Compiler
 local NBlock -- defined in next section
 function Compiler:init(--[[Optional]] contextVar)
     self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef()
@@ -189,7 +196,8 @@ function Compiler:Compile12_3(code, arg1, arg2)
     print("Compiling12_3 ", code, arg1, arg2 )
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
-function Compiler:CompileAll() self.nodes(self) end
+ -- Compilation occurs in two passes, the first pass returns a function that performs the second pass
+function Compiler:CompileAll() self.nodes(self)(self) end
 function Compiler:AddNodes(nodes) self.nodes.AddAll(nodes) end
 function Compiler:CompileConstant(constant)
     assert(type(constant) == "string")
@@ -225,7 +233,6 @@ function Compiler:ParseVariable(str)
     return obj, name
 end
 function goal.Compile(nodes, --[[Optional]] varname)
-    pretty("Compiling: ", nodes, varname)
     local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; return C.bytes
 end
 ---------------------------------------------------------------------------------
@@ -248,7 +255,7 @@ end
 -- NodeTransformer: The main utility that transforms label-nodes into 
 -- code-emitting AST components.
 ---------------------------------------------------------------------------------
-local NodeTransformer = class()
+local NodeTransformer = class "NodeTransformer"
 function NodeTransformer:init(label, childWalkers, convertListToTable, transformer)
     self.childWalkers = childWalkers and {} or false
     if childWalkers then
@@ -261,7 +268,7 @@ function NodeTransformer:init(label, childWalkers, convertListToTable, transform
     self.label, self.transformer = label, transformer
     self.convertListToTable = convertListToTable
 end
-function NodeTransformer:Apply(labelNode)
+function NodeTransformer:Apply(labelNode, --[[Optional]] compiler)
     if not self.childWalkers then return self.transformer(labelNode) end
     -- Complex case
     local transformedNodes, nodeMap = {}, {}
@@ -276,7 +283,7 @@ function NodeTransformer:Apply(labelNode)
         assert(converted, ("The label-node '%s' is not valid inside '%s!'"):format(c.label, self.label))
     end
     local value = (self.convertListToTable and nodeMap or transformedNodes)
-    return self.transformer(makeLabelNode(self.label, value))
+    return self.transformer(makeLabelNode(self.label, value), --[[Optional]] compiler)
 end
 function NodeTransformer:AllLabelValues(--[[Optional]] t)
     t = t or {} ; for c in values(self.childWalkers or {}) do append(t, c.label) ; c.AllLabelValues(t) end ; return values(t)
@@ -292,12 +299,15 @@ function NodeTransformer:__call(...) return self.Apply(simpleNode(self.label, ..
 -- simply create a tree of label nodes (when called together).
 --------------------------------------------------------------------------------
 -- Code block creation:
-NBlock = class() ; goal.NBlock = NBlock-- A linear block of code nodes
+NBlock = class "NBlock" ; goal.NBlock = NBlock-- A linear block of code nodes
 function NBlock:init(--[[Optional]] block) self.block = block or {} end
 function NBlock:Add(node) append(self.block, assert(node)) end
 function NBlock:AddAll(nodes) Map(self.Add, nodes) end
+local function resolvePass(C, nodes) return Map(function(f) return f(C) end, nodes) end
 -- Compiler comes in two passes -- resolve both using Map:
-function NBlock:__call(C) local R = function(f) return f(C) end ; Map(R, Map(R, self.block)) end
+function NBlock:__call(C)  
+    local nextBlock = resolvePass(C, self.block) ; return function() resolvePass(C, nextBlock) end
+end
  -- Holder of all possible statement nodes:
 local SNodes = {} ; goal.SNodes = SNodes
  -- Holder of all possible expression nodes:
@@ -308,11 +318,10 @@ local function nodeTransform(nodeTable, lnode) assert(lnode.label and lnode.valu
     return SNodes[lnode.label](C, unpack(lnode.values))
 end end
 -- Create an AST node from a list of label-nodes using SNodes:
-function goal.CodeParse(...)
-    return Map(Curry(nodeTransform, SNodes), pack(...))
-end
+function goal.CodeParse(...) return Map(Curry(nodeTransform, SNodes), pack(...)) end
+function goal.CodeBlock(...) prettyAst(...) ; return NBlock(goal.CodeParse(...)) end
 -- Create an AST node from a label-node using SNodes:
-goal.ExprParse = Curry(nodeTransform, ENodes)
+function goal.ExprParse(node) assert(#node.values==1); return nodeTransform(ENodes, node) end
 -- Program AST basic statements:
 local basic = {} ; goal.BasicSNodes = basic -- Basic statements
 function basic.Print(C, str)
@@ -320,15 +329,12 @@ function basic.Print(C, str)
 end
 function basic.Printf(C, str, ...)
     local args = {...}
-    return function(C) C.CompileConstant(str) ; NBlock(args)(C) ; C.Compile123("BC_PRINTFN", #args + 1) end
+    args = resolvePass(C, args)
+    return function(C) C.CompileConstant(str) ; resolvePass(C, args) ; C.Compile123("BC_PRINTFN", #args + 1) end
 end
 table.merge(basic, SNodes) -- SNodes is a superset of basic
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
-local function makeExpr(...) 
-    local ex = ... ; assert(select('#',...) == 1)
-    return function(C) return exprs[ex.label](C, unpack(ex.values)) end 
-end
 function exprs.stringPush(C, expression)
     local obj, name = C.ParseVariable(expression)
     local idx = obj and obj.ResolveIndex() or 0
@@ -342,12 +348,13 @@ end
 function exprs.Var(var)
     local parts = var:split(".")
     local isString = parts[#parts]:match("^%l")
+    local func = (isString and exprs.stringPush or exprs.objectPush)
     -- Choose with value pushed to use:
-    return Curry((isString and exprs.stringPush or exprs.objectPush), var, 2)
+    return function(C) return func(C, var) end
 end
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
-local VarBuilder = class()
+local VarBuilder = class "VarBuilder"
 function VarBuilder:init(repr) self.repr = repr end
 function VarBuilder:__index(k) return VarBuilder(self.repr .. '.' .. k) end
 function VarBuilder:__call(k)
@@ -358,43 +365,49 @@ end
 for k,v in pairs(goal) do
     if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then k = k:sub(#"MEMBER_" + 2) ; _G[k] = VarBuilder(k) end
 end
+-- Discover all child labels for all complex nodes:
+local function makeNT(...)
+    local nt = NodeTransformer(...) ; for label in nt.AllLabelValues() do 
+        _G[label] = function(...) return simpleNode(label, ...) end 
+    end ; return nt
+end
+local function forward(...) local args = pack(...) ; assert(#args == 1) ; return args[1].values[1] end
+local function unwrapped(f) return function (...) 
+    local args = pack(...) ; assert(#args == 1) ; return f(unpack(args[1].values)) 
+end end
+local function resolveTableNode(t, C, ...) 
+    local args,newArgs=pack(...),{} ; for v in values(args) do append(newArgs, t.values[v](C)) end ; return unpack(newArgs)
+end
 -- Other operations:
 for op in values {
-    NodeTransformer("CheckExists", { Expr = makeExpr, Yes = goal.CodeParse, No = goal.CodeParse}, true, 
-        function(t)
-            pretty("CheckExists",t)
-         return function(C)
-            pretty(t)
-            t.values.Expr(C)
-            local jumpToNoCaseStart = C.CompilePlaceholder()
-            yesCaseNode(C)
-            local jumpToNoCaseEnd = C.CompilePlaceholder()
-            local noCaseStart = C.BytesSize()
-            noCaseNode(C)
-            local noCaseEnd = C.BytesSize()
-            C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
-            C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
+    makeNT("CheckExists", { Expr = forward, Yes = unwrapped(goal.CodeBlock), No = unwrapped(goal.CodeBlock)}, true,
+        function(t, C)
+            local expr,yes,no = resolveTableNode(t, C, "Expr", "Yes", "No") ; assertAll(expr,yes,no)
+            return function()
+                expr()
+                local jumpToNoCaseStart = C.CompilePlaceholder()
+                yes()
+                local jumpToNoCaseEnd = C.CompilePlaceholder()
+                local noCaseStart = C.BytesSize()
+                no()
+                local noCaseEnd = C.BytesSize()
+                C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
+                C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
         end end)
-} do SNodes[op.label] = op end
+} do SNodes[op.label] = function(C, ...) return op.Apply(simpleNode(op.label,...), C) end end
+-- Discover all statement & expression label nodes:
+for label,v in pairsAll(SNodes, ENodes) do _G[label] = function(...) return simpleNode(label, ...) end end
 -- Root level functions
 for root in values {
-    NodeTransformer("Analyze", { Files = listNode }, true, 
+    makeNT("Analyze", { Files = listNode }, true, 
         function(t)
             ColorPrint("36;1", "-- ANALYZING:\n")
             goal.GlobalSymbolContext.AnalyzeAll(t.values.Files)
             ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end),
-    NodeTransformer("Event", { FuncDecl = valueNode }, true,
+    makeNT("Event", { FuncDecl = valueNode }, true,
         function(t)
             local event, varName = table.next(t.values) -- Find first
             return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
         end)
 } do _G[root.label] = root end
- -- Discover all statement & expression label nodes:
-for label,v in pairsAll(SNodes, ENodes) do _G[label] = Curry(simpleNode, label) end
-for _, transformer in pairs(_G) do
-     -- Discover all child labels for complex nodes:
-    if getmetatable(transformer) == NodeTransformer then
-        for label in transformer.AllLabelValues() do _G[label] = Curry(simpleNode, label) end
-    end
-end

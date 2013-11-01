@@ -17,7 +17,7 @@ function pretty_tostring(val, --[[Optional]] tabs, --[[Optional]] packed, --[[Op
             tabstr = tabstr .. "  "
         end
     end
-
+    if type(val) == "string" then val = val:gsub('\n','\\n') end
     if type(val) == "string" and quote_strings then
         return tabstr .. "\"" .. val .. "\""
     end
@@ -68,16 +68,38 @@ function pretty_print(val, --[[Optional]] tabs, --[[Optional]] packed)
     print(pretty_tostring(val, tabs, packed))
 end
 
+local function pretty_s(val)
+    if type(val) ~= "function" then
+        return pretty_tostring_compact(val)
+    end
+    local info = debug.getinfo(val)
+    local ups = "{" ; for i=1,info.nups do 
+        local k, v = debug.getupvalue(val,i) ; ups = ups .. k .."="..pretty_s(v)..","
+    end
+    return "function " .. info.source .. ":" .. info.linedefined .. "-" .. info.lastlinedefined .. ups .. '}'
+end
+
 -- Convenience print-like function:
 function pretty(...)
     local args = {}
     for i=1,select("#", ...) do
-        if type(args[i]) == "function" then
-            args[i] = pretty_tostring_compact(debug.getinfo(select(i, ...)))
-        else
-            args[i] = pretty_tostring_compact(select(i, ...))
-        end 
+        args[i] = pretty_s(select(i, ...))
     end
     print(unpack(args))
 end
 
+local function prettyPrintAst(ast, indent)
+    io.write(indent .. ') ')
+    for i=1,indent do io.write(". ") end
+    if type(ast) == "table" and ast.label then
+        print(ast.label)
+        if type(ast.values) == "table" then
+            for i=1,#ast.values do
+                prettyPrintAst(ast.values[i], indent + 1)
+            end
+        end
+    else pretty(ast) end
+end
+function prettyAst(...)
+    for i in values{...} do prettyPrintAst(i, 1) end
+end

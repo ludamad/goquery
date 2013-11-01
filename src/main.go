@@ -9,6 +9,8 @@ func main() {
 	allPassed := goal.RunTests("src/tests")
 
 	if !allPassed {
-		fmt.Printf("Not all tests have passed!\n")
+		fmt.Printf("Error: Not all tests have passed!\n")
+	} else {
+		fmt.Printf("All tests passed.\n")
 	}
 }

@@ -1,7 +1,5 @@
 local C
-for k, v in pairsAll(goal.SNodes, goal.ENodes) do -- expose nodes
-    _G[k] = function(...) return v(C, ...) end
-end
+local SNodes, ENodes = goal.SNodes, goal.ENodes
 
 local function Test(...)
     C.AddNodes({...}) ; C.CompileAll()
@@ -13,33 +11,28 @@ end
 
 -- Call AST node creators directly, the end syntax looks a little like normal GoAL.
 
--- Case 1
+-- Case 1 Low level node
 C = goal.Compiler "FD"
 Test(
-    Printf("FuncDecl: Found %s '%s' at '%s'\n", 
-        stringPush "FD.type", stringPush "FD.name", stringPush "FD.location"
+    SNodes.Printf(C, "FuncDecl: Found %s '%s' at '%s'\n", 
+        ENodes.stringPush(C, "FD.type"), ENodes.stringPush(C, "FD.name"), ENodes.stringPush(C, "FD.location")
     )
 )
 
----- Case 2
---C = goal.Compiler "FD"
---Test(
---    checkExists(
---        objectPush "FD.Receiver",
---        Print "Yes\n",
---        Print "No\n"
---    )
---)
----- Case 3
---C = goal.Compiler "FD"
---Test(
---    checkExists(
---        objectPush "FD.Receiver",
---        Printf("FuncDecl: Function '%s' has receiver type '%s'.\n",
---           stringPush "FD.name", stringPush "FD.Receiver.type"
---        ),
---        Printf("FuncDecl: Function '%s' has no receiver type.\n",
---           stringPush "FD.name"
---        )
---    )
---)
+-- Case 2 Control node
+C = goal.Compiler "FD"
+Test(
+    SNodes.CheckExists(C,
+        Expr(Receiver "FD"),
+        Yes(Print "Yes\n"), No(Print "No\n")
+    )
+)
+-- Case 3 Control node with complex children
+C = goal.Compiler "FD"
+Test(
+    SNodes.CheckExists(C,
+        Expr(Receiver "FD"),
+        Yes(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD")),
+        No( Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD") )
+    )
+)
