@@ -29,20 +29,24 @@ function class()
     return type
 end
 
+local append = table.insert
+ -- This works because pairs returns (next, k)
+table.next, _ = pairs {}
+
 local function do_nothing() end
 
 local function pack(...)
     local t = {}
     for i=1,select("#", ...) do
         local val = assert(select(i, ...), "Found nil value at ".. i)
-        table.insert(t, val)
+        append(t, val)
     end
     return t
 end
 
 function table.key_list(t)
     local keys = {}
-    for k, _ in pairs(t) do table.insert(keys, k) end
+    for k, _ in pairs(t) do append(keys, k) end
     return keys
 end
 function table.index_of(t, val)
@@ -50,26 +54,37 @@ function table.index_of(t, val)
     return nil
 end
 
-local function ipairsAll(...)
-    local tabs, ret = pack(...), {}
-    for _, tab in ipairs(tabs) do for _, v in ipairs(tab) do table.insert(ret, v) end end
-    return ipairs(ret)
+function values(table)
+    local idx = 1
+    return function()
+        local val = table[idx]
+        idx = idx + 1
+        return val
+    end
 end
 
-local function pairsAll(...)
+function appendAll(...)
+    local tabs, ret = pack(...), {}
+    for tab in values(tabs) do for v in values(tab) do append(ret, v) end end
+    return ret
+end
+function mergeAll(...)
     local ret = {}
     for i=1,select("#", ...) do
         for k, v in pairs(select(i, ...) or {}) do
-            assert(not ret[k], "Tables passed to pairsAll are not mutually exclusive!")
+            assert(not ret[k], "Tables passed to mergeAll are not mutually exclusive!")
             ret[k] = v
         end
     end
-    return pairs(ret)
+    return ret
 end
+function pairsAll(...) return pairs(mergeAll(...)) end
+function ipairsAll(...) return ipairs(appendAll(...)) end
+function valuesAll(...) return values(appendAll(...)) end
 
 function string:split(sep)
     local t = {}
-    self:gsub(("([^%s]+)"):format(sep), function(s) table.insert(t, s) end)
+    self:gsub(("([^%s]+)"):format(sep), function(s) append(t, s) end)
     return t
 end
 
@@ -82,6 +97,33 @@ end})
 setmetatable(goal, {__index = function(self, k)
     error( ("'goal.%s' does not exist!"):format(k) )
 end})
+
+--------------------------------------------------------------------------------
+-- Functional operator API
+--------------------------------------------------------------------------------
+
+function Map(f,list) 
+    local newList = {}
+    for v in values(list) do append(newList, v) end
+    return newList
+end
+local function varargMap(f,...) return unpack(Map(f, pack(...))) end
+function Compose(f,g) return function(...) 
+    return f(g(...))
+end end
+function Curry(f,x, --[[Optional]] index) return function(...)
+    local args = pack(...)
+    table.insert(args, index or 1, x)
+    return f(unpack(args))
+end end
+function Inject(f,g, --[[Optional]] index) return function(...)
+    local args = pack(...)
+    args[index or 1] = g(args[index or 1])
+    return f(unpack(args))
+end end
+function InjectAll(f,g, --[[Optional]] index) return function(...)
+    return f(varargMap(g, ...))
+end end
 
 --------------------------------------------------------------------------------
 -- Utility methods and global context
@@ -122,11 +164,11 @@ function goal.SetTypeSpecEvent(type, ev)
 end
 
 function goal.PushConstants(bc, strings)
-    for _, str in ipairs(strings) do bc.PushStringConstant(str) end
+    for str in values(strings) do bc.PushStringConstant(str) end
 end
 
 function goal.PushBytecodes(bc, bytecodes)
-    for _, code in ipairs(bytecodes) do bc.PushBytecode(code) end
+    for code in values(bytecodes) do bc.PushBytecode(code) end
 end
 
 goal.DefineTuple = gsym.DefineTuple
@@ -149,7 +191,7 @@ function ObjectRef:Lookup(key)
     local var = self.memberMap[key]
     if not var then
         var = ObjectRef(key, self, self.members[#self.members])
-        table.insert(self.members, var)
+        append(self.members, var)
         self.memberMap[key] = var
     end
     -- Forward along if there are more arguments:
@@ -183,7 +225,7 @@ end
 function ObjectRef:ResolveSize()
     if self.allocSize then return self.allocSize end
     self.allocSize = 1
-    for _, m in ipairs(self.members) do
+    for m in values(self.members) do
         self.allocSize = self.allocSize + m.ResolveSize()
     end
     return self.allocSize
@@ -217,7 +259,7 @@ end
 local function numToBytes(num, n)
     local bytes = {}
     for i=1,n do
-        table.insert(bytes, num % 256)
+        append(bytes, num % 256)
         num = math.floor(num / 256)
     end
     return unpack(bytes)
@@ -237,10 +279,6 @@ function Compiler:Compile12_3(code, arg1, arg2)
     local b1,b2 = numToBytes(arg1, 2)
     print("Compiling12_3 ", code, arg1, arg2 )
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
-end
-function Compiler:AddNode(node) self.code.Add(node(self)) end 
-function Compiler:AddNodeRefs(nodes)
-    for _, n in ipairs(nodes) do self.AddNode(n) end
 end
 function Compiler:CompileAll() self.code(self) end
 function Compiler:CompileConstant(constant)
@@ -264,7 +302,7 @@ function Compiler:ResolveObject(parts)
     if #parts == 0 then
         return nil
     end
-    for _, part in pairs(parts) do
+    for part in values(parts) do
         assert(part:match("^%w+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
         node = node.Lookup(part)
     end
@@ -273,9 +311,15 @@ end
 function Compiler:ParseVariable(str)
     local parts = str:split(".")
     local name = parts[#parts] ; parts[#parts] = nil
---    assert(name:match("^%l%w+$"), "Expecting a string reference! (got \"" .. table.concat(parts, ".") .. "\")")
     local obj = self.ResolveObject(parts)
     return obj, name
+end
+
+function goal.Compile(varname, code)
+    pretty(varname, code)
+    local c = Compiler(varname)
+    for n in values(nodes) do self.code.Add(n) end
+    return c.bytes
 end
 
 --------------------------------------------------------------------------------
@@ -289,15 +333,15 @@ function NBlock:init(C, --[[Optional]] block)
     for i,f in ipairs(self.block) do self.block[i] = f(C) end
 end
 function NBlock:Add(code) 
-    table.insert(self.block, code)
+    append(self.block, code)
 end
 local function callNodes(nodes, C)
     assert(C)
     local block = {}
     for i,f in ipairs(nodes) do 
         local fc = f(C)
-    table.insert(block, fc) end
-    for _, child in ipairs(block) do
+    append(block, fc) end
+     for child in values(block) do
          child(C)
      end
 end
@@ -306,6 +350,12 @@ function NBlock:__call(C)
 end
 
 ops = {}
+local function codeNodeTransform(node)
+    return function(C) 
+        assert(ops[node.label], ("'%s' is not a valid code node!"):format(node.label))
+        return ops[node.label](C, unpack(node.values))
+    end
+end
 function ops.Print(C, str)
     return function()
         C.CompileConstant(str)
@@ -327,8 +377,44 @@ function ops.objectPush(C, expression)
     end
 end
 
-function ops.checkExists(C, expression, yesCaseNode, noCaseNode)
+function ops.Printf(C, str, ...)
+    local args = {...}
     return function(C)
+        C.CompileConstant(str)
+        callNodes(args, C)
+        C.Compile123("BC_PRINTFN", #args + 1)
+    end
+end
+
+function ops.Var(var)
+    local parts = var:split(".")
+    local isString = parts[#parts]:match("^%l")
+    -- Choose with value pushed to use:
+    return Curry((isString and ops.stringPush or ops.objectPush), var, 2)
+end
+
+-- Makes the AST nodes that form expressions look kind-of like lua refs:
+local VarBuilder = class()
+function VarBuilder:init(repr) self.repr = repr end
+function VarBuilder:__index(k) return VarBuilder(self.repr .. '.' .. k) end
+function VarBuilder:__call(k)
+    if type(k) == "string" then return ops.Var(k .. "." .. self.repr) end
+    return ops.Var(self.repr .. k.repr)
+end
+
+Var, Self = ops.Var, ops.Var
+
+for k,v in pairs(goal) do
+    if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then 
+        k = k:sub(#"MEMBER_" + 2)
+        ops[k] = VarBuilder(k)
+    end
+end
+
+-- AST nodes that don't map as nicely as those in 'ops':
+
+local function compileCheckExists(C, expression, yesCaseNode, noCaseNode)
+    return function()
         expression(C)
         local jumpToNoCaseStart = C.CompilePlaceholder()
         yesCaseNode(C)
@@ -340,152 +426,94 @@ function ops.checkExists(C, expression, yesCaseNode, noCaseNode)
         C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
     end
 end
-function ops.Printf(C, str, ...)
-    local args = {...}
-    return function(C)
-        C.CompileConstant(str)
-        callNodes(args, C)
-        C.Compile123("BC_PRINTFN", #args + 1)
-    end
-end
-
 --------------------------------------------------------------------------------
--- Helper for defining the Goal API functions, which build nodes of the AST
+-- Helpers for defining the Goal API functions, which build nodes of the AST
 --------------------------------------------------------------------------------
-local function subnodeMap(t)
-    local map = {}
-    pretty(t)
-    for _,arg in ipairs(t) do map[arg.name] = arg.node end
-    return map
+local function nodes2table(nodes)
+    local table = {}
+    for n in values(nodes) do table[nodes.label] =n.values end
+    return table
 end
-local function resolveArg(arg, --[[Optional]] C) -- C is not used for leaf nodes
-    if type(arg) == "function" then return arg(C) -- Resolve top-down dependence on compiler object
-    else return assert(arg) end
+-- Create a function that simply provides a labelled node
+local function makeLabelNode(label, values) return { label = label, values = values} end
+local function simpleNode(label, ...) return makeLabelNode(label, pack(...)) end
+local function listNode(node) return node.values end
+local function valueNode(node) 
+    assert(#node.values == 1,
+        ("'%s' expects %s parameter."):format(node.label, #node.values < 1 and "a" or "only one")
+    )
 end
-local function resolveArgs(args, --[[Optional]] C) -- C is not used for leaf nodes
-    for i,f in ipairs(args) do args[i] = resolveArg(f, C) end
-    return args
-end
-local function leafNode(name)
-    return function(...) 
-        local args = {...}
-        return { name = name, node = args}
-    end
-end
-local function parseArgs(name, T, expected, optional, --[[Optional]] C)
-    local args = {}
-    for _, e in ipairs(expected) do
-        assert(T[e], ("Expected '%s' while parsing '%s'!"):format(e, name))
-        table.insert(args, T[e])
-    end
-    for k, v in pairs(T) do
-        if not table.index_of(expected, k) and not table.index_of(optional, k) then
-            assert(T[k], ("'%s' is not valid inside '%s!'"):format(k, name))
+local NodeTransformer = class()
+function NodeTransformer:init(label, childWalkers, convertListToTable, transformer)
+    for sublabel,subtransformer in pairs(childWalkers or {}) do
+        if type(subtransformer) == "function" then -- Wrap functions in simple nodes 
+            append(childWalkers, NodeTransformer(sublabel, nil, false, subtransformer)) 
         end
     end
-    -- Handle expected
-    local opt = {}
-    for _, o in ipairs(optional) do
-        if T[o] then opt[o] = T[o] end
+    self.label, self.transformer = label, transformer
+    self.childWalkers,self.convertListToTable = childWalkers or false, convertListToTable
+end
+function NodeTransformer:Apply(labelNode)
+    if not self.childWalkers then -- Simple case 
+        return self.transformer(labelNode) 
     end
-    table.insert(args, opt)
-    if C then table.insert(args, C) end
-    return unpack(args)
-end
-local NodeBuilder = class()
-function NodeBuilder:init(name, expected, optional, func)
-    self.name, self.expected, self.optional, self.func = name, expected, optional, func
-end
-function NodeBuilder:__call(...)
-    local args = pack(...)
-    return function(C)
-        resolveArgs(args, C)
-        return self.func(parseArgs(self.name, subnodeMap(args), self.expected, self.optional, C))
+    -- Complex case
+    local transformedNodes, nodeMap = {}, {}
+    for c in values(labelNode.values) do
+        for cW in values(self.childWalkers) do
+            if cW.label ~= c.label then
+                -- Nothing
+            elseif self.convertListToTable then
+                nodeMap[c.label] = cW.Apply(c)
+            else
+                append(transformedNodes, cW.Apply(c))
+            end
+        end
     end
+    local value = (self.convertListToTable and nodeMap or transformedNodes)
+    return self.transformer(makeLabelNode(self.label, value))
 end
-
+function NodeTransformer:AllLabelValues(--[[Optional]] t)
+    t = t or {}
+    for c in values(self.childWalkers or {}) do append(t, c.label) ; c.AllLabelValues(t) end
+    return values(t)
+end
+function NodeTransformer:__call(...)
+    return self.Apply(simpleNode(self.label, ...))
+end
 --------------------------------------------------------------------------------
 -- Goal API
 --------------------------------------------------------------------------------
-local builders = {
-NodeBuilder ("CheckExists", --[[Must have:]] {"Expr"}, --[[Optional:]] {"Yes", "No"},
-    function(Expr, opts, C)
-        local yes,no = NBlock(C, opts.Yes), NBlock(C, opts.No)
-        if not opts.Yes and not opts.No then
-            error("'CheckExists' must have at least one clause.") 
+
+local function makeCodeBlock(...)
+    return Map(codeNodeTransform, pack(...))
+end
+
+local NT = NodeTransformer -- brevity
+-- Root level functions
+local roots = {
+    NT("Analyze", { Files = listNode }, true, 
+        function(t)
+            ColorPrint("36;1", "-- ANALYZING:\n")
+            goal.GlobalSymbolContext.AnalyzeAll(t.values.Files)
+            ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end
-        return ops.checkExists(C, Expr[1](C), yes, no)
-    end)
+    ),
+    NT("Event", { FuncDecl = valueNode }, true,
+        function(t)
+            local event, varName = table.next(t.values) -- Find first
+            return function(...) goal.SetEvent(event, goal.Compile(varName, makeCodeBlock(...))) end
+        end
+    )
 }
 
-local events = {"FuncDecl"}
-function Event(...)
-    local opts = subnodeMap(resolveArgs(pack(...)))
-    for k, v in pairs(opts) do
-        return function(...)
-            local compiler = Compiler(opts[k][1])
-            for _, p in ipairs(pack(...)) do 
-                table.insert(compiler.code.block, p)
-            end
-            compiler.CompileAll()
-            goal.SetEvent(k, compiler.bytes)
-        end
+for root in values(roots) do
+    for label in root.AllLabelValues() do
+        _G[label] = Curry(simpleNode, label)
     end
-end
-local analyzeExpected, analyzeOptional = {"Files"}, {}
-function Analyze(...)
-    local args = resolveArgs(pack(...))
-    local Files, opt = parseArgs("Analyze", subnodeMap(args), analyzeExpected, analyzeOptional)
-    ColorPrint("36;1", "-- ANALYZING:\n")
-    goal.GlobalSymbolContext.AnalyzeAll(Files)
-    ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
+    _G[root.label] = root.__call -- Bound method
 end
 
--- Derive simple nodes based on complex nodes
-for _,leaf in ipairsAll(analyzeExpected, analyzeOptional, events) do
-    _G[leaf] = leafNode(leaf)
-end
-for _,builder in ipairs(builders) do
-    _G[builder.name] = builder
-    for _, leafname in ipairsAll(builder.expected, builder.optional) do 
-        _G[leafname] = leafNode(leafname)
-    end
-end
-
-function Var(var)
-    local parts = var:split(".")
-    if parts[#parts]:match("^%l") then
-        return function(C)
-            return ops.stringPush(assert(C), var)
-        end
-    else
-        return function(C)
-            return ops.objectPush(assert(C), var)
-        end
-    end
-end
-
--- Makes AST refs look kind-of like lua refs:
-local ObjectProxy = class()
-function ObjectProxy:__index(k) return ObjectProxy(self.repr .. '.' .. k) end
-function ObjectProxy:__call() return Var(self.repr) end
-function ObjectProxy:init(repr) self.repr = repr end
-
-for k,v in pairs(goal) do
-    if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then 
-        k = k:sub(#"MEMBER_" + 2)
-        _G[k] = ObjectProxy(k)
-    end
-end
-
-for k,v in pairs(ops) do
-    _G[k] = function(...)
-        local args = {...}
-        return function(C) 
-            return function() 
-                local val = ops[k](C, unpack(args))
-                return val 
-            end 
-        end
-    end
+for label,v in pairs(ops) do
+    _G[label] = Curry(simpleNode, label)
 end

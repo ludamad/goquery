@@ -3,39 +3,43 @@ for k, v in pairs(ops) do -- expose nodes
     _G[k] = function(...) return v(C, ...) end
 end
 
+local function Test(...)
+    for v in values {...} do
+        C.code.Add(
+            Printf("FuncDecl: Found %s '%s' at '%s'\n", 
+                stringPush "FD.type", stringPush "FD.name", stringPush "FD.location"
+            )
+        )
+    end
+    C.CompileAll()
+    goal.SetEvent("FuncDecl", C.bytes)
+    Analyze (
+        Files "src/tests/sample.go"
+    )
+end
+
+-- Call AST node creators directly, the end syntax looks a little like normal GoAL.
+
 -- Case 1
 C = goal.Compiler "FD"
-C.AddNode(
+Test(
     Printf("FuncDecl: Found %s '%s' at '%s'\n", 
         stringPush "FD.type", stringPush "FD.name", stringPush "FD.location"
     )
 )
-C.CompileAll()
-goal.SetEvent("FuncDecl", C.bytes)
-
-Analyze (
-    Files "src/tests/sample.go"
-)
 
 -- Case 2
 C = goal.Compiler "FD"
-C.AddNode(
+Test(
     checkExists(
         objectPush "FD.Receiver",
         Print "Yes\n",
         Print "No\n"
     )
 )
-C.CompileAll()
-goal.SetEvent("FuncDecl", C.bytes)
-
-Analyze (
-    Files "src/tests/sample.go"
-)
-
 -- Case 3
 C = goal.Compiler "FD"
-C.AddNode(
+Test(
     checkExists(
         objectPush "FD.Receiver",
         Printf("FuncDecl: Function '%s' has receiver type '%s'.\n",
@@ -45,10 +49,4 @@ C.AddNode(
            stringPush "FD.name"
         )
     )
-)
-C.CompileAll()
-goal.SetEvent("FuncDecl", C.bytes)
-
-Analyze (
-    Files "src/tests/sample.go"
 )

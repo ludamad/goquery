@@ -22,12 +22,23 @@ These Lua functions produce labelled nodes (we will call them **label-nodes**). 
 
 1) Expression nodes
 -
-Expression nodes evaluate to either complex objects, or strings. Strings are the main atomic type in GoAL, being a source-code oriented DSL. Complex objects usually but not always refers to members of the [go.ast package](http://golang.org/pkg/go/ast/).
 
-+ **Object and string accesses** occur in two forms:  
-    eg, **Receiver**.**type** "f"  
-    or  **type**(**Receiver**("f"))  
-    This second syntax makes object expressions easily composable (See **Compose** below).
+Expression nodes evaluate **to arbitrary Go objects**, including possibly any type in GoAL runtime (not in the program you are analyzing!). Being a source-code oriented DSL, you often want information extracted from nodes as convenient strings. A few special variable names exist for members of the [go.ast package](http://golang.org/pkg/go/ast/):
+
++ type: Return a unique string type representation of the node's .Type member, if it has one.
+
++ location: Return a location string that will be unique for the node **within its type**.
++ name: Return a the name of any string with a .Name node (an alias for Name.Name)
+
+
+**Object access operators** occur in two forms:  
+
++ **Receiver**.**type** "f"
++ **type**(**Receiver** "f")
+    
+The flexibility in syntax makes object expressions easily composable (See **Compose** below).
+
+Additional operators:
 
 + **Eval** Evaluate to the first expression whose conditions are met.  
     *General form*: **Eval** (Conditions to meet **1**) (expression-node **1**) **...** (**Otherwise**) (expression-node **N**) 
@@ -43,6 +54,8 @@ Expression nodes evaluate to either complex objects, or strings. Strings are the
 3) Code conditional nodes
 -
 + **IfExists** Evaluate if the expression does not evaluate to a **null** value.  
+    *General form*: **IfExists** (object-expression-list)
++ **IfEqual** Evaluate if all the objects are equal, using Go equality rules.  
     *General form*: **IfExists** (object-expression-list)
 + **True**, **False**, **Otherwise** Constants. Note that **Otherwise** is an alias for **True**, for use in **Case** and **Eval** blocks.
 + **And, Or, Xor, NotAnd, NotOr, NotXor, Not**: Standard boolean operators. **Not** only takes one parameter.  
