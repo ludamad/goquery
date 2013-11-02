@@ -183,7 +183,6 @@ local function numToBytes(num, n)
 end
 function Compiler:Compile123(code, arg, --[[Optional]] idx)
     local b1,b2,b3 = numToBytes(arg, 3)
-    if not idx then print("Compiling123 ", code, arg) end
     local bc = goal.Bytecode(goal[code], b1,b2,b3)
     if idx then 
         self.bytes.SetBytecode(idx, bc)
@@ -193,15 +192,13 @@ function Compiler:Compile123(code, arg, --[[Optional]] idx)
 end
 function Compiler:Compile12_3(code, arg1, arg2)
     local b1,b2 = numToBytes(arg1, 2)
-    print("Compiling12_3 ", code, arg1, arg2 )
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
  -- Compilation occurs in two passes, the first pass returns a function that performs the second pass
 function Compiler:CompileAll() self.nodes(self)(self) end
 function Compiler:AddNodes(nodes) self.nodes.AddAll(nodes) end
 function Compiler:CompileConstant(constant)
-    assert(type(constant) == "string")
-    self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
+    assert(type(constant) ~= "table" and type(constant) ~= "userdata") ; self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
 end
 function Compiler:ResolveConstant(constant)
     local index = self.constantMap[constant]
