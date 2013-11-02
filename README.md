@@ -3,7 +3,7 @@ Goquery (tentative repo title)
 Undergraduate computer science project at UOIT, year 2013-2014.  
 Goquery intends to be a tool or set of small tools, time permitting.
 
-Currently in progress is a DSL for traversing Go languages.
+Currently in progress is a DSL for traversing Go sourcecode.
 
 Disclaimer: 
 -
