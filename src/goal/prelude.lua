@@ -319,7 +319,7 @@ local SNodes = {} ; goal.SNodes = SNodes
  -- Holder of all possible expression nodes:
 local ENodes = {} ; goal.ENodes = ENodes
 -- Create an AST node from a label-node using a given transformation table:
-local function nodeTransform(nodeTable, lnode) assert(lnode.label and lnode.values) ; return function(C) 
+local function nodeTransform(nodeTable, lnode) if type(lnode) == "function" then pretty(debug.getinfo(lnode)) end ; assert(lnode.label and lnode.values) ; return function(C) 
     assert(SNodes[lnode.label], ("'%s' is not a valid code node!"):format(lnode.label))
     return SNodes[lnode.label](C, unpack(lnode.values))
 end end
@@ -338,36 +338,30 @@ function basic.Printf(C, str, ...)
     args = resolvePass(C, args)
     return function(C) C.CompileConstant(str) ; resolvePass(C, args) ; C.Compile123("BC_PRINTFN", n) end
 end
+local function callableLabelNode(label, values, f)
+    return setmetatable(makeLabelNode(label,values), {__call = function(self, ...) return f(...) end })
+end
+function SNodes.Case(C, cases) 
+    print "first pass"
+    -- First pass:
+    pretty("cases",cases)
+    for case in values(cases) do case[1] = case[1](C) ; case[2] = case[2](C) end
+    return function() -- Second pass:
+        print "second pass"
+        pretty(cases)
+        local endJumps = {} -- Collect all jumps that lead to end
+        for case in values(cases) do
+            case[1]() ; local condCheck = C.CompilePlaceholder() -- Condition
+            case[2]() ; append(endJumps, C.CompilePlaceholder()) -- Block
+            C.Compile123("BC_JMP_FALSE", --[[End]] C.BytesSize(), condCheck)
+        end ; for jumpIdx in values(endJumps) do C.Compile123("BC_JMP", --[[End]] C.BytesSize(), jumpIdx) end
+    end
+end
 function Case(expr)
-    local addCondition, addStatements, finish
-    local cases = {}
-    function addCondition(cond)
-        print "addCondition"
-        pretty(cases)
-        -- Detect case ending by whether we are passed the compiler:
-        if getmetatable(cond) == Compiler then return finish(cond) end ; append(cases, {cond})
-        return addStatements
-    end
-    function addStatements(...)
-        print "addStatements"
-        pretty(cases)
-        cases[#cases][2] = goal.CodeBlock(...)
-        return addCondition
-    end
-    function finish(C) assert(#cases >= 1)
-        print "finish first pass"
-        -- First pass:
-        for case in values(cases) do case[1] = case[1](C) ; case[2] = case[2](C) end
-        return function() -- Second pass:
-            print "finish second pass"
-            pretty(cases)
-            local endJumps = {} -- Collect all jumps that lead to end
-            for case in values(cases) do
-                case[1]() ; local condCheck = C.CompilePlaceholder() -- Condition
-                case[2]() ; append(endJumps, C.CompilePlaceholder()) -- Block
-                C.Compile123("BC_JMP_FALSE", --[[End]] C.BytesSize(), condCheck)
-            end ; for jumpIdx in values(endJumps) do C.Compile123("BC_JMP", --[[End]] C.BytesSize(), jumpIdx) end
-        end
+    local cases = {} ; local addCondition, addStatements, finish
+    function addCondition(cond) append(cases, {cond}) ; return addStatements end
+    function addStatements(...) 
+        cases[#cases][2] = goal.CodeBlock(...) ; return callableLabelNode("Case", {cases}, addCondition)
     end
     return addCondition(expr)
 end
@@ -403,25 +397,8 @@ end end
 local function resolveTableNode(t, C, ...) 
     local args,newArgs=pack(...),{} ; for v in values(args) do append(newArgs, t.values[v](C)) end ; return unpack(newArgs)
 end
--- Other operations:
-for op in values {
-    makeNT("CheckExists", { Expr = forward, Yes = unwrapped(goal.CodeBlock), No = unwrapped(goal.CodeBlock)}, true,
-        function(t, C)
-            local expr,yes,no = resolveTableNode(t, C, "Expr", "Yes", "No") ; assertAll(expr,yes,no)
-            return function()
-                expr()
-                local jumpToNoCaseStart = C.CompilePlaceholder()
-                yes()
-                local jumpToNoCaseEnd = C.CompilePlaceholder()
-                local noCaseStart = C.BytesSize()
-                no()
-                local noCaseEnd = C.BytesSize()
-                C.Compile123("BC_JMP_FALSE", noCaseStart, jumpToNoCaseStart)
-                C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
-        end end)
-} do SNodes[op.label] = function(C, ...) return op.Apply(simpleNode(op.label,...), C) end end
 -- Discover all statement & expression label nodes:
-for label,v in pairsAll(SNodes, ENodes) do _G[label] = function(...) return simpleNode(label, ...) end end
+for label,v in pairsAll(SNodes, ENodes) do _G[label] = rawget(_G, label) or function(...) return simpleNode(label, ...) end end
 -- Root level functions
 for root in values {
     makeNT("Analyze", { Files = listNode }, true, 

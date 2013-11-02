@@ -22,14 +22,16 @@ Test(
 -- Case 2 Control node
 C = goal.Compiler "FD"
 Test(
-    Case(Receiver "FD")(Print "Simple case: Meets conditional\n\n")(Otherwise)(Print "Simple case: Does not meet conditional\n")
+    SNodes.Case(C, {
+        {Receiver "FD", goal.CodeBlock(Print "Simple case: Meets conditional\n\n")},
+        {Otherwise, goal.CodeBlock(Print "Simple case: Does not meet conditional\n")}
+    })
 )
 -- Case 3 Control node with complex children
 C = goal.Compiler "FD"
 Test(
-    Case(Receiver "FD")(
-        Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD")
-    )(Otherwise) (
-        Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD")
-    )
+    SNodes.Case(C, {
+        {Receiver "FD", goal.CodeBlock(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD"))}, 
+        {Otherwise, goal.CodeBlock(Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD"))}
+    })
 )
