@@ -124,7 +124,7 @@ end
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
 function goal.SetEvent(type, ev) events[type] = ev end
-function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushStringConstant(str) end end
+function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
 --------------------------------------------------------------------------------
@@ -201,14 +201,14 @@ function Compiler:CompileAll() self.nodes(self)(self) end
 function Compiler:AddNodes(nodes) self.nodes.AddAll(nodes) end
 function Compiler:CompileConstant(constant)
     assert(type(constant) == "string")
-    self.Compile123("BC_STRING_CONSTANT", self.ResolveConstant(constant))
+    self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
 end
 function Compiler:ResolveConstant(constant)
     local index = self.constantMap[constant]
     if not index then
         index = self.constantIndex
         self.constantMap[constant] = index
-        self.bytes.PushStringConstant(constant)
+        self.bytes.PushConstant(constant)
         self.constantIndex = self.constantIndex + 1
     end
     return index
@@ -233,7 +233,8 @@ function Compiler:ParseVariable(str)
     return obj, name
 end
 function goal.Compile(nodes, --[[Optional]] varname)
-    local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; return C.bytes
+    local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; 
+    prettyBytecode(C.bytes) ; return C.bytes
 end
 ---------------------------------------------------------------------------------
 -- Helpers for defining types of nodes
@@ -335,20 +336,20 @@ end
 table.merge(basic, SNodes) -- SNodes is a superset of basic
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
-function exprs.stringPush(C, expression)
+function exprs.specialPush(C, expression)
     local obj, name = C.ParseVariable(expression)
     local idx = obj and obj.ResolveIndex() or 0
-    return function() C.Compile12_3("BC_STRING_PUSH", idx, goal["SMEMBER_" .. name]) end
+    return function() C.Compile12_3("BC_SPECIAL_PUSH", idx, goal["SMEMBER_" .. name]) end
 end
-function exprs.objectPush(C, expression)
+function exprs.memberPush(C, expression)
     local obj, name = C.ParseVariable(expression)
     local idx = obj and obj.ResolveIndex() or 0
-    return function() C.Compile12_3("BC_OBJECT_PUSH", idx, goal["OMEMBER_" .. name]) end
+    return function() C.Compile12_3("BC_MEMBER_PUSH", idx, goal["OMEMBER_" .. name]) end
 end
 function exprs.Var(var)
     local parts = var:split(".")
-    local isString = parts[#parts]:match("^%l")
-    local func = (isString and exprs.stringPush or exprs.objectPush)
+    local isSpecial = parts[#parts]:match("^%l")
+    local func = (isSpecial and exprs.specialPush or exprs.memberPush)
     -- Choose with value pushed to use:
     return function(C) return func(C, var) end
 end
@@ -391,7 +392,7 @@ for op in values {
                 local noCaseStart = C.BytesSize()
                 no()
                 local noCaseEnd = C.BytesSize()
-                C.Compile123("BC_JMP_OBJ_ISNIL", noCaseStart, jumpToNoCaseStart)
+                C.Compile123("BC_JMP_FALSE", noCaseStart, jumpToNoCaseStart)
                 C.Compile123("BC_JMP", noCaseEnd, jumpToNoCaseEnd)
         end end)
 } do SNodes[op.label] = function(C, ...) return op.Apply(simpleNode(op.label,...), C) end end

@@ -10,7 +10,7 @@ Analyze (
 -- Simple conditional
 Event(FuncDecl "f") (
     CheckExists(Expr(Receiver "f"),
-        Yes(Printf "Cond1"), No(Printf "Cond2")
+        Yes(Printf "Cond1\n"), No(Printf "Cond2\n")
     )
 )
 

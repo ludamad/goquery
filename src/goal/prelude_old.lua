@@ -316,14 +316,14 @@ function ops.stringPush(C, expression)
     local obj, name = C.ParseVariable(expression)
     local idx = obj and obj.ResolveIndex() or 0
     return function()
-        C.Compile12_3("BC_STRING_PUSH", idx, goal["SMEMBER_" .. name])
+        C.Compile12_3("BC_SPECIAL_PUSH", idx, goal["SMEMBER_" .. name])
     end
 end
 function ops.objectPush(C, expression)
     local obj, name = C.ParseVariable(expression)
     local idx = obj and obj.ResolveIndex() or 0
     return function() 
-        C.Compile12_3("BC_OBJECT_PUSH", idx, goal["OMEMBER_" .. name])
+        C.Compile12_3("BC_MEMBER_PUSH", idx, goal["OMEMBER_" .. name])
     end
 end
 

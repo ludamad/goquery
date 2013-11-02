@@ -15,17 +15,17 @@ func (f *FieldListLoop) Enter(bc *BytecodeContext) bool {
 	if f.index >= len(f.fields) {
 		return false
 	}
-	bc.pushObject(f.fields[f.index])
+	bc.push(f.fields[f.index])
 	f.index++
 	return true
 }
 
 func (f *FieldListLoop) Exit(bc *BytecodeContext) {
-	bc.popObjects(1)
+	bc.popN(1)
 }
 
 func (bc *BytecodeExecContext) resolveStringMember(objIdx int, memberIdx int) string {
-	n := bc.ObjectStack[objIdx]
+	n := bc.Stack[objIdx]
 
 	switch node := n.(type) {
 	case []string:
@@ -52,11 +52,12 @@ func (bc *BytecodeExecContext) resolveStringMember(objIdx int, memberIdx int) st
 	if memberIdx == SMEMBER_location {
 		return bc.PositionString(n.(ast.Node))
 	}
-	panic("resolveObjectMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n).String())
+	print(n.(string))
+	panic("resolveStringMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n).String())
 }
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) interface{} {
-	n := bc.ObjectStack[objIdx]
+	n := bc.Stack[objIdx]
 	if n == nil {
 		return nil
 	}
@@ -85,7 +86,7 @@ func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) in
 }
 
 func (bc *BytecodeContext) resolveLoop(objIdx int, loopKind int) LoopContext {
-	n := bc.ObjectStack[objIdx]
+	n := bc.Stack[objIdx]
 	switch loopKind {
 	case LMEMBER_Methods:
 		iface := n.(*ast.InterfaceType)

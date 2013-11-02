@@ -5,8 +5,8 @@ import (
 	"github.com/aarzilli/golua/lua"
 	"github.com/stevedonovan/luar"
 	"io/ioutil"
-	"strings"
 	"runtime/debug"
+	"strings"
 )
 
 // Exposes the (very) low level GoAL API.
@@ -61,21 +61,23 @@ var _API luar.Map = luar.Map{
 	"FindGoFiles":        findGoFiles,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
-	"BC_STRING_PUSH":     BC_STRING_PUSH,
-	"BC_STRING_CONSTANT": BC_STRING_CONSTANT,
-	"BC_OBJECT_PUSH":     BC_OBJECT_PUSH,
-	"BC_LOOP_PUSH":       BC_LOOP_PUSH,
-	"BC_POP_STRINGSN":    BC_POP_STRINGSN,
-	"BC_POP_OBJECTSN":    BC_POP_OBJECTSN,
-	"BC_LOAD_TUPLE":      BC_LOAD_TUPLE,
-	"BC_SAVE_TUPLE":      BC_SAVE_TUPLE,
-	"BC_MAKE_TUPLE":      BC_MAKE_TUPLE,
-	"BC_CONCATN":         BC_CONCATN,
-	"BC_JMP_STR_ISEMPTY": BC_JMP_STR_ISEMPTY,
-	"BC_JMP_OBJ_ISNIL":   BC_JMP_OBJ_ISNIL,
-	"BC_JMP":             BC_JMP,
-	"BC_PRINTFN":         BC_PRINTFN,
-	"Bytecode":           func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
+	"BC_CONSTANT":     BC_CONSTANT,
+	"BC_MEMBER_PUSH":  BC_MEMBER_PUSH,
+	"BC_SPECIAL_PUSH": BC_SPECIAL_PUSH,
+	"BC_LOOP_PUSH":    BC_LOOP_PUSH,
+	"BC_POPN":         BC_POPN,
+	"BC_CONCATN":      BC_CONCATN,
+	"BC_LOAD_TUPLE":   BC_LOAD_TUPLE,
+	"BC_MAKE_TUPLE":   BC_MAKE_TUPLE,
+	"BC_JMP_FALSE":    BC_JMP_FALSE,
+	"BC_JMP":          BC_JMP,
+	"BC_BOOL_AND":     BC_BOOL_AND,
+	"BC_BOOL_OR":      BC_BOOL_OR,
+	"BC_BOOL_XOR":     BC_BOOL_XOR,
+	"BC_BOOL_NOT":     BC_BOOL_NOT,
+	"BC_PRINTFN":      BC_PRINTFN,
+	"BC_SPRINTFN":     BC_SPRINTFN,
+	"Bytecode":        func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
 	"OMEMBER_Signature": OMEMBER_Signature,
 	"OMEMBER_Receiver":  OMEMBER_Receiver,
@@ -95,7 +97,7 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	ok := LuaDoFile(L, "src/goal/prelude.lua")
 	if !ok {
 		panic("Prelude is damaged.")
-	} 
+	}
 	return L
 }
 

@@ -218,7 +218,7 @@ function Compiler:CompileConstant(constant)
 end
 
 function Compiler:CompileVar(object, var)
-    self.Compile12_3("BC_OBJECT_PUSH", var.ResolveIndex(), goal["SMEMBER_" + var])
+    self.Compile12_3("BC_MEMBER_PUSH", var.ResolveIndex(), goal["SMEMBER_" + var])
 end
 
 function Compiler:ResolveConstant(constant)

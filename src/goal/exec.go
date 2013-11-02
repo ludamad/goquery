@@ -28,11 +28,11 @@ func (bc *BytecodeContext) tryLoop(hasStarted bool) {
 }
 
 func (bc *BytecodeContext) printN(n int) {
-	fmtString := bc.peekString(n)
+	fmtString := bc.peek(n).(string)
 	if n == 1 {
 		fmt.Print(fmtString)
 	} else {
-		args := bc.sliceStrings(n - 1)
+		args := bc.copyStrings(n - 1)
 		// Helper to coerce []string -> ...interface{} (via ...string)
 		iargs := make([]interface{}, len(args))
 		for i := range args {
@@ -40,7 +40,7 @@ func (bc *BytecodeContext) printN(n int) {
 		}
 		fmt.Printf(fmtString, iargs...)
 	}
-	bc.popStrings(n)
+	bc.popN(n)
 }
 
 type BytecodeExecContext struct {
@@ -53,55 +53,58 @@ func (bc BytecodeExecContext) execOne() {
 	code := bc.Bytecodes[bc.Index]
 	bc.Index++
 	switch code.Code {
-	case BC_STRING_CONSTANT:
-		bc.pushString(bc.StringConstants[code.bytes1to3()])
-	case BC_STRING_PUSH:
-		str := bc.resolveStringMember(code.bytes1to2(), int(code.Val3))
-		bc.pushString(str)
-	case BC_OBJECT_PUSH:
-		obj := bc.resolveObjectMember(code.bytes1to2(), int(code.Val3))
-		bc.pushObject(obj)
-	case BC_POP_STRINGSN:
-		bc.popStrings(code.bytes1to3())
-	case BC_POP_OBJECTSN:
-		bc.popObjects(code.bytes1to3())
+	case BC_CONSTANT:
+		bc.push(bc.Constants[code.Bytes1to3()])
+	case BC_SPECIAL_PUSH:
+		str := bc.resolveStringMember(code.Bytes1to2(), int(code.Val3))
+		bc.push(str)
+	case BC_MEMBER_PUSH:
+		obj := bc.resolveObjectMember(code.Bytes1to2(), int(code.Val3))
+		bc.push(obj)
+	case BC_POPN:
+		bc.popN(code.Bytes1to3())
 	case BC_LOOP_PUSH:
-		bc.pushLoop(bc.resolveLoop(code.bytes1to2(), int(code.Val3)))
+		bc.pushLoop(bc.resolveLoop(code.Bytes1to2(), int(code.Val3)))
 		bc.tryLoop(false)
 	case BC_LOOP_CONTINUE:
 		bc.tryLoop(true)
 	case BC_CONCATN:
-		bc.concatStrings(code.bytes1to3())
+		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
 		n := int(code.Val3)
-		bc.SaveTuple(code.bytes1to2(), bc.copyStrings(n))
-		bc.popStrings(n)
+		bc.SaveTuple(code.Bytes1to2(), bc.copyStrings(n))
+		bc.popN(n)
 	case BC_LOAD_TUPLE:
 		n := int(code.Val3)
-		tuple := bc.LoadTuple(code.bytes1to2(), bc.sliceStrings(n))
-		bc.popStrings(n)
+		tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
+		bc.popN(n)
 		if len(tuple) == 0 {
-			bc.pushObject(nil)
+			bc.push(nil)
 		} else {
-			bc.pushObject(tuple)
+			bc.push(tuple)
 		}
 	case BC_MAKE_TUPLE:
-		n := code.bytes1to3()
-		bc.pushObject(bc.copyStrings(n))
-		bc.popStrings(n)
-	case BC_JMP_STR_ISEMPTY:
-		if bc.peekString(1) == "" {
-			bc.Index = code.bytes1to3()
+		n := code.Bytes1to3()
+		bc.push(bc.copyStrings(n))
+		bc.popN(n)
+	case BC_JMP_FALSE:
+		topVal := bc.peek(1)
+		if topVal == nil || topVal == false || topVal == ""  {
+			bc.Index = code.Bytes1to3()
 		}
-		bc.popStrings(1)
-	case BC_JMP_OBJ_ISNIL:
-		if bc.peekObject(1) == nil {
-			bc.Index = code.bytes1to3()
-		}
+		bc.popN(1)
+	case BC_BOOL_AND: // Evaluates an object-oriented 'and' of the top two elements, pops both, pushes result
+		panic("TODO")
+	case BC_BOOL_OR: // Evaluates an object-oriented 'or' of the top two elements, pops both, pushes result
+		panic("TODO")
+	case BC_BOOL_XOR: // Evaluates a 'xor' of the top two elements, pops both, pushes result
+		panic("TODO")
+	case BC_BOOL_NOT: // Evaluates a 'not' of the top element, pops it, pushes result
+		panic("TODO")
 	case BC_JMP:
-		bc.Index = code.bytes1to3()
+		bc.Index = code.Bytes1to3()
 	case BC_PRINTFN:
-		n := code.bytes1to3()
+		n := code.Bytes1to3()
 		bc.printN(n)
 	default:
 		panic("Bad bytes!")
@@ -111,11 +114,10 @@ func (bc BytecodeExecContext) execOne() {
 func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objects []interface{}) {
 	// Reset
 	bc.Index = 0
-	bc.popObjects(len(bc.ObjectStack))
-	bc.popStrings(len(bc.StringStack))
+	bc.popN(len(bc.Stack))
 
 	for _, obj := range objects {
-		bc.pushObject(obj)
+		bc.push(obj)
 	}
 
 	bcExecContext := BytecodeExecContext{bc, globSym, fileSym}
@@ -123,6 +125,5 @@ func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbo
 		bcExecContext.execOne()
 	}
 
-
-	bc.popObjects(len(objects))
+	bc.popN(len(objects))
 }
