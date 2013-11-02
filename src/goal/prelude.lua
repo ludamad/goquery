@@ -123,7 +123,7 @@ end
 -- For testing purposes:
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
-function goal.SetEvent(type, ev) events[type] = ev end
+function goal.SetEvent(type, ev) prettyBytecode(ev) ; events[type] = ev end
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple

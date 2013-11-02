@@ -105,65 +105,27 @@ function prettyAst(...)
 end
 
 function prettyBytecode(bc)
-    for i, bc in ipairs(bc.Bytecodes) do 
+    for i, code in ipairs(bc.Bytecodes) do 
         io.write(i .. ') ')
-        local code = bc.Code
-        if code == goal.BC_CONSTANT then
-            print("CONSTANT_PUSH \"" .. bc.Constants[code.Bytes1to3()] .. "\"")
-        elseif 
-    case BC_SPECIAL_PUSH:
-        str := bc.resolveStringMember(code.Bytes1to2(), int(code.Val3))
-        bc.push(str)
-    case BC_MEMBER_PUSH:
-        obj := bc.resolveObjectMember(code.Bytes1to2(), int(code.Val3))
-        bc.push(obj)
-    case BC_POPN:
-        bc.popN(code.Bytes1to3())
-    case BC_LOOP_PUSH:
-        bc.pushLoop(bc.resolveLoop(code.Bytes1to2(), int(code.Val3)))
-        bc.tryLoop(false)
-    case BC_LOOP_CONTINUE:
-        bc.tryLoop(true)
-    case BC_CONCATN:
-        bc.concatStrings(code.Bytes1to3())
-    case BC_SAVE_TUPLE:
-        n := int(code.Val3)
-        bc.SaveTuple(code.Bytes1to2(), bc.copyStrings(n))
-        bc.popN(n)
-    case BC_LOAD_TUPLE:
-        n := int(code.Val3)
-        tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
-        bc.popN(n)
-        if len(tuple) == 0 {
-            bc.push(nil)
-        } else {
-            bc.push(tuple)
-        }
-    case BC_MAKE_TUPLE:
-        n := code.Bytes1to3()
-        bc.push(bc.copyStrings(n))
-        bc.popN(n)
-    case BC_JMP_FALSE:
-        topVal := bc.peek(1)
-        if topVal == nil || topVal == false || topVal == ""  {
-            bc.Index = code.Bytes1to3()
-        }
-        bc.popN(1)
-    case BC_BOOL_AND: // Evaluates an object-oriented 'and' of the top two elements, pops both, pushes result
-        panic("TODO")
-    case BC_BOOL_OR: // Evaluates an object-oriented 'or' of the top two elements, pops both, pushes result
-        panic("TODO")
-    case BC_BOOL_XOR: // Evaluates a 'xor' of the top two elements, pops both, pushes result
-        panic("TODO")
-    case BC_BOOL_NOT: // Evaluates a 'not' of the top element, pops it, pushes result
-        panic("TODO")
-    case BC_JMP:
-        bc.Index = code.Bytes1to3()
-    case BC_PRINTFN:
-        n := code.Bytes1to3()
-        bc.printN(n)
-    default:
-        panic("Bad bytes!")
-    }
+        local v = code.Code
+        if v == goal.BC_CONSTANT then
+            print("Constant Push \"" .. bc.Constants[code.Bytes1to3()+1]:gsub("\n", "\\n") .. "\"")
+        elseif v == goal.BC_SPECIAL_PUSH then
+            print("Special Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
+        elseif v == goal.BC_MEMBER_PUSH then
+            print("Member Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
+        elseif v == goal.BC_POPN then
+            print("Pop :" .. code.Bytes1to3())
+        elseif v == goal.BC_CONCATN then
+            print("Concat " .. code.Bytes1to3())
+        elseif v == goal.BC_JMP_FALSE then
+            print("JumpIfFalse I: " .. code.Bytes1to3())
+        elseif v == goal.BC_JMP then
+            print("Jump I: " .. code.Bytes1to3())
+        elseif v == goal.BC_PRINTFN then
+            print("Print N: " .. code.Bytes1to3())
+        else
+            print("Unknown code " .. v)
+        end
     end
 end
