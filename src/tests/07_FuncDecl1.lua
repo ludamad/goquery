@@ -9,22 +9,21 @@ Analyze (
 
 -- Simple conditional
 Event(FuncDecl "f") (
-    CheckExists(Expr(Receiver "f"),
-        Yes(Printf "Cond1\n"), No(Printf "Cond2\n")
-    )
+    Case(Receiver "f")(Printf "Cond1\n")(Otherwise)(Printf "Cond2\n")
 )
 
 Analyze (
     Files "src/tests/sample.go"
 )
-
-Event(FuncDecl "f") (
-    CheckExists(Expr(Receiver "f"),
-        Yes(Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", Receiver.type "f")),
-        No( Printf("Conditional: Function '%s' has no receiver type.\n", name "f") )
-    )
-)
-
-Analyze (
-    Files "src/tests/sample.go"
-)
+--
+--Event(FuncDecl "f") (
+--    Case (Receiver "f") (
+--        Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", Receiver.type "f")
+--    ) (Otherwise) (
+--        Printf("Conditional: Function '%s' has no receiver type.\n", name "f")
+--    )
+--)
+--
+--Analyze (
+--    Files "src/tests/sample.go"
+--)

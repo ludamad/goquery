@@ -7,18 +7,22 @@ import (
 	"strings"
 )
 
-func RunTests(dir string) (int,int) {
+func RunTests(dir string, onlyRun int) (int,int) {
 	io, err := ioutil.ReadDir(dir)
 	if err != nil {
 		fmt.Print(err)
 		return 1,1
 	}
 
-	failures, total := 0, 0
+	failures, total, n := 0, 0, 0
 	for _, file := range io {
 		fname := file.Name()
 		if fname[0] != '0' || strings.Index(fname, ".lua") != len(fname)-4 || fname == "prelude.lua" {
 			continue
+		}
+		n++;
+		if onlyRun != -1 && onlyRun != n {
+			continue;
 		}
 		total++
 		L := NewGoalLuaContext("goal")

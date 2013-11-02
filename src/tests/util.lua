@@ -109,7 +109,7 @@ function prettyBytecode(bc)
         io.write(i .. ') ')
         local v = code.Code
         if v == goal.BC_CONSTANT then
-            print("Constant Push \"" .. bc.Constants[code.Bytes1to3()+1]:gsub("\n", "\\n") .. "\"")
+            print("Constant Push \"" .. tostring(bc.Constants[code.Bytes1to3()+1]):gsub("\n", "\\n") .. "\"")
         elseif v == goal.BC_SPECIAL_PUSH then
             print("Special Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
         elseif v == goal.BC_PUSH then
@@ -125,7 +125,7 @@ function prettyBytecode(bc)
         elseif v == goal.BC_JMP then
             print("Jump I: " .. code.Bytes1to3())
         elseif v == goal.BC_PRINTFN then
-            print("Print N: " .. code.Bytes1to3())
+            print("PrintF N: " .. code.Bytes1to3())
         else
             print("Unknown code " .. v)
         end

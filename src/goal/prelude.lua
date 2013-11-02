@@ -224,14 +224,16 @@ function Compiler:ResolveObject(parts)
 end
 function Compiler:CompileObjectRef(str)
     local parts = str:split(".")
-    local obj, name = self.ResolveObject(parts), parts[#parts] 
+    local obj, name = self.ResolveObject(parts), parts[#parts]
+    -- First pass: Push all submembers onto stack
     local idx = obj.ResolveIndex(function(obj, idx)
         local parts = str:split(".")
         local obj, name = self.ResolveObject(parts), parts[#parts] 
         local isSpecial = name:match("^%l")
         local ref = goal[(isSpecial and "SMEMBER_" or "OMEMBER_") .. name] 
-        self.Compile123("BC_PUSH", idx)  
-    end)
+        if idx > 0 then
+            self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.ResolveIndex(), ref)
+        end end)
     return function() self.Compile123("BC_PUSH", idx) end
 end
 
@@ -332,11 +334,44 @@ function basic.Print(C, str)
     return function() C.CompileConstant(str) ; C.Compile123("BC_PRINTFN", 1) end
 end
 function basic.Printf(C, str, ...)
-    local args = {...}
+    local args = pack(...) ; local n = #args+1
     args = resolvePass(C, args)
-    return function(C) C.CompileConstant(str) ; resolvePass(C, args) ; C.Compile123("BC_PRINTFN", #args + 1) end
+    return function(C) C.CompileConstant(str) ; resolvePass(C, args) ; C.Compile123("BC_PRINTFN", n) end
 end
-table.merge(basic, SNodes) -- SNodes is a superset of basic
+function Case(expr)
+    local addCondition, addStatements, finish
+    local cases = {}
+    function addCondition(cond)
+        print "addCondition"
+        pretty(cases)
+        -- Detect case ending by whether we are passed the compiler:
+        if getmetatable(cond) == Compiler then return finish(cond) end ; append(cases, {cond})
+        return addStatements
+    end
+    function addStatements(...)
+        print "addStatements"
+        pretty(cases)
+        cases[#cases][2] = goal.CodeBlock(...)
+        return addCondition
+    end
+    function finish(C) assert(#cases >= 1)
+        print "finish first pass"
+        -- First pass:
+        for case in values(cases) do case[1] = case[1](C) ; case[2] = case[2](C) end
+        return function() -- Second pass:
+            print "finish second pass"
+            pretty(cases)
+            local endJumps = {} -- Collect all jumps that lead to end
+            for case in values(cases) do
+                case[1]() ; local condCheck = C.CompilePlaceholder() -- Condition
+                case[2]() ; append(endJumps, C.CompilePlaceholder()) -- Block
+                C.Compile123("BC_JMP_FALSE", --[[End]] C.BytesSize(), condCheck)
+            end ; for jumpIdx in values(endJumps) do C.Compile123("BC_JMP", --[[End]] C.BytesSize(), jumpIdx) end
+        end
+    end
+    return addCondition(expr)
+end
+table.merge(basic, SNodes) -- SNodes is a superset
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
 function exprs.Var(var)
@@ -401,3 +436,11 @@ for root in values {
             return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
         end)
 } do _G[root.label] = root end
+-- Various constants
+local function constantN(val) 
+    return function(C) 
+        return function() C.CompileConstant(true) end 
+    end 
+end
+True, False = constantN(true), constantN(false)
+Otherwise = True ; Always = True
