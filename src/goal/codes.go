@@ -26,16 +26,17 @@ func (bc Bytecode) Bytes1to3() int {
 }
 
 const (
-	BC_CONSTANT = iota // Pushes a string constant
+	BC_CONSTANT = iota // Pushes an object constant
+	BC_PUSH // Pushes the object at the given stack index to the top of the stack
 	BC_MEMBER_PUSH // Takes <object> <member name>
 	BC_SPECIAL_PUSH // Takes <object> <special member name: 'name', 'location' or 'type'>
 	BC_LOOP_PUSH
 	BC_LOOP_CONTINUE
 	BC_POPN // Takes <number>, pops that many objects from the stack.
 	BC_CONCATN
-	BC_SAVE_TUPLE // Takes <tuple kind>, <tuple size>, pops tuple data from string stack
-	BC_LOAD_TUPLE // Takes <tuple kind>, <key size>, pushes tuple to object stack
-	BC_MAKE_TUPLE // Takes <key size>, pushes a tuple (string vector) onto the object stack
+	BC_SAVE_TUPLE // Takes <tuple kind>, <tuple size>, pops tuple data from the stack
+	BC_LOAD_TUPLE // Takes <tuple kind>, <key size>, pushes tuple to stack
+	BC_MAKE_TUPLE // Takes <key size>, pushes a tuple (vector) onto the stack
 	BC_JMP_FALSE // Takes <code index>, jumps if the top element is: "", false, or nil. Pops the top element
 	BC_JMP // Takes <code index>, jumps unconditionally
 	BC_BOOL_AND // Evaluates an object-oriented 'and' of the top two elements, pops both, pushes result
@@ -48,8 +49,7 @@ const (
 
 // Object members
 const (
-	OMEMBER_Self = iota // Same as pushing the object at the given index
-	OMEMBER_Signature
+	OMEMBER_Signature = iota
 	OMEMBER_Receiver
 )
 

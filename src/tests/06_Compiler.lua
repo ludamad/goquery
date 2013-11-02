@@ -15,24 +15,24 @@ end
 C = goal.Compiler "FD"
 Test(
     SNodes.Printf(C, "FuncDecl: Found %s '%s' at '%s'\n", 
-        ENodes.stringPush(C, "FD.type"), ENodes.stringPush(C, "FD.name"), ENodes.stringPush(C, "FD.location")
+        C.CompileObjectRef "FD.type", C.CompileObjectRef "FD.name", C.CompileObjectRef "FD.location"
     )
 )
-
--- Case 2 Control node
-C = goal.Compiler "FD"
-Test(
-    SNodes.CheckExists(C,
-        Expr(Receiver "FD"),
-        Yes(Print "Yes\n"), No(Print "No\n")
-    )
-)
--- Case 3 Control node with complex children
-C = goal.Compiler "FD"
-Test(
-    SNodes.CheckExists(C,
-        Expr(Receiver "FD"),
-        Yes(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD")),
-        No( Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD") )
-    )
-)
+--
+---- Case 2 Control node
+--C = goal.Compiler "FD"
+--Test(
+--    SNodes.CheckExists(C,
+--        Expr(Receiver "FD"),
+--        Yes(Print "Yes\n"), No(Print "No\n")
+--    )
+--)
+---- Case 3 Control node with complex children
+--C = goal.Compiler "FD"
+--Test(
+--    SNodes.CheckExists(C,
+--        Expr(Receiver "FD"),
+--        Yes(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD")),
+--        No( Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD") )
+--    )
+--)

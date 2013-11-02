@@ -149,12 +149,13 @@ function ObjectRef:Pop(n)
         local name = self.members[i].name ; self.members[i], self.memberMap[name] = nil, nil
     end
 end
-function ObjectRef:ResolveIndex()
-    if self.stackIndex then -- Cached, return 
-    elseif self.previous then self.stackIndex = self.previous.ResolveIndex() + self.previous.ResolveSize()
-    elseif self.parent then self.stackIndex = self.parent.ResolveIndex() + 1
-    else self.stackIndex = -1 -- Base case, the root is a pseudo-node
-    end ; return self.stackIndex
+function ObjectRef:ResolveIndex(--[[Optional]] resolvef)
+    if self.stackIndex then return self.stackIndex end -- Already resolved, return 
+    if self.previous then self.stackIndex = self.previous.ResolveIndex(resolvef) + self.previous.ResolveSize()
+    elseif self.parent then self.stackIndex = self.parent.ResolveIndex(resolvef) + 1
+    else self.stackIndex = -1 end -- Base case, the root is a pseudo-node
+    if resolvef then resolvef(self, self.stackIndex) end
+    return self.stackIndex
 end
 -- Figure out how 'deep' we are, the elements at the end of a given stack frame start at 0
 function ObjectRef:ResolveSize()
@@ -214,21 +215,26 @@ function Compiler:CompilePlaceholder() return self.bytes.PushBytecode(goal.Bytec
 function Compiler:BytesSize() return self.bytes.BytecodeSize() end -- Placeholder for jump
 function Compiler:ResolveObject(parts)
     local node = self.objects
-    if #parts == 0 then
-        return nil
-    end
+    if #parts == 0 then return nil end
     for part in values(parts) do
         assert(part:match("^%w+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
         node = node.Lookup(part)
     end
     return node
 end
-function Compiler:ParseVariable(str)
+function Compiler:CompileObjectRef(str)
     local parts = str:split(".")
-    local name = parts[#parts] ; parts[#parts] = nil
-    local obj = self.ResolveObject(parts)
-    return obj, name
+    local obj, name = self.ResolveObject(parts), parts[#parts] 
+    local idx = obj.ResolveIndex(function(obj, idx)
+        local parts = str:split(".")
+        local obj, name = self.ResolveObject(parts), parts[#parts] 
+        local isSpecial = name:match("^%l")
+        local ref = goal[(isSpecial and "SMEMBER_" or "OMEMBER_") .. name] 
+        self.Compile123("BC_PUSH", idx)  
+    end)
+    return function() self.Compile123("BC_PUSH", idx) end
 end
+
 function goal.Compile(nodes, --[[Optional]] varname)
     local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; 
     prettyBytecode(C.bytes) ; return C.bytes
@@ -333,22 +339,8 @@ end
 table.merge(basic, SNodes) -- SNodes is a superset of basic
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
-function exprs.specialPush(C, expression)
-    local obj, name = C.ParseVariable(expression)
-    local idx = obj and obj.ResolveIndex() or 0
-    return function() C.Compile12_3("BC_SPECIAL_PUSH", idx, goal["SMEMBER_" .. name]) end
-end
-function exprs.memberPush(C, expression)
-    local obj, name = C.ParseVariable(expression)
-    local idx = obj and obj.ResolveIndex() or 0
-    return function() C.Compile12_3("BC_MEMBER_PUSH", idx, goal["OMEMBER_" .. name]) end
-end
 function exprs.Var(var)
-    local parts = var:split(".")
-    local isSpecial = parts[#parts]:match("^%l")
-    local func = (isSpecial and exprs.specialPush or exprs.memberPush)
-    -- Choose with value pushed to use:
-    return function(C) return func(C, var) end
+    return function(C) return C.CompileObjectRef(var) end
 end
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:

@@ -61,6 +61,9 @@ func (bc BytecodeExecContext) execOne() {
 	case BC_MEMBER_PUSH:
 		obj := bc.resolveObjectMember(code.Bytes1to2(), int(code.Val3))
 		bc.push(obj)
+	case BC_PUSH:
+		obj := bc.Stack[code.Bytes1to3()]
+		bc.push(obj)
 	case BC_POPN:
 		bc.popN(code.Bytes1to3())
 	case BC_LOOP_PUSH:

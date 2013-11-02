@@ -27,6 +27,10 @@ func (f *FieldListLoop) Exit(bc *BytecodeContext) {
 func (bc *BytecodeExecContext) resolveStringMember(objIdx int, memberIdx int) string {
 	n := bc.Stack[objIdx]
 
+	if n == nil {
+		return ""
+	}
+
 	switch node := n.(type) {
 	case []string:
 		return node[memberIdx]
@@ -62,8 +66,6 @@ func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) in
 		return nil
 	}
 	switch memberIdx {
-	case OMEMBER_Self:
-		return n
 	case OMEMBER_Signature:
 		node, ok := n.(*ast.FuncDecl)
 		if !ok {

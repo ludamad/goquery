@@ -112,6 +112,8 @@ function prettyBytecode(bc)
             print("Constant Push \"" .. bc.Constants[code.Bytes1to3()+1]:gsub("\n", "\\n") .. "\"")
         elseif v == goal.BC_SPECIAL_PUSH then
             print("Special Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
+        elseif v == goal.BC_PUSH then
+            print("Stack Push I:" .. code.Bytes1to3())
         elseif v == goal.BC_MEMBER_PUSH then
             print("Member Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
         elseif v == goal.BC_POPN then

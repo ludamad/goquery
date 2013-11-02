@@ -62,6 +62,7 @@ var _API luar.Map = luar.Map{
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
 	"BC_CONSTANT":     BC_CONSTANT,
+	"BC_PUSH":         BC_PUSH,
 	"BC_MEMBER_PUSH":  BC_MEMBER_PUSH,
 	"BC_SPECIAL_PUSH": BC_SPECIAL_PUSH,
 	"BC_LOOP_PUSH":    BC_LOOP_PUSH,
