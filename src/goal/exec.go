@@ -28,7 +28,7 @@ func (bc *BytecodeContext) tryLoop(hasStarted bool) {
 }
 
 func (bc *BytecodeContext) printN(n int) {
-	fmtString := bc.peek(n).(string)
+	fmtString := bc.peek(n).value.(string)
 	if n == 1 {
 		fmt.Print(fmtString)
 	} else {
@@ -56,7 +56,7 @@ func (bc BytecodeExecContext) execOne() {
 	case BC_CONSTANT:
 		bc.push(bc.Constants[code.Bytes1to3()])
 	case BC_SPECIAL_PUSH:
-		str := bc.resolveStringMember(code.Bytes1to2(), int(code.Val3))
+		str := bc.resolveSpecialMember(code.Bytes1to2(), int(code.Val3))
 		bc.push(str)
 	case BC_MEMBER_PUSH:
 		obj := bc.resolveObjectMember(code.Bytes1to2(), int(code.Val3))
@@ -66,11 +66,6 @@ func (bc BytecodeExecContext) execOne() {
 		bc.push(obj)
 	case BC_POPN:
 		bc.popN(code.Bytes1to3())
-	case BC_LOOP_PUSH:
-		bc.pushLoop(bc.resolveLoop(code.Bytes1to2(), int(code.Val3)))
-		bc.tryLoop(false)
-	case BC_LOOP_CONTINUE:
-		bc.tryLoop(true)
 	case BC_CONCATN:
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
@@ -82,16 +77,12 @@ func (bc BytecodeExecContext) execOne() {
 		tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
 		bc.popN(n)
 		if len(tuple) == 0 {
-			bc.push(nil)
+			bc.push(makeStrRef(nil))
 		} else {
-			bc.push(tuple)
+			bc.push(makeStrRef(tuple))
 		}
-	case BC_MAKE_TUPLE:
-		n := code.Bytes1to3()
-		bc.push(bc.copyStrings(n))
-		bc.popN(n)
 	case BC_JMP_FALSE:
-		topVal := bc.peek(1)
+		topVal := bc.peek(1).value
 		if topVal == nil || topVal == false || topVal == ""  {
 			bc.Index = code.Bytes1to3()
 		}
@@ -120,7 +111,7 @@ func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbo
 	bc.popN(len(bc.Stack))
 
 	for _, obj := range objects {
-		bc.push(obj)
+		bc.push(makeGoalRef(obj))
 	}
 
 	bcExecContext := BytecodeExecContext{bc, globSym, fileSym}

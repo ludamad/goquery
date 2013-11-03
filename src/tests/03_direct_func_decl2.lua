@@ -3,7 +3,7 @@ goal.SetEvent("FuncDecl", goal.SimpleBytecodeContext({
     "FuncDecl: Function '%s' has no receiver type.\n"
 }, {
     SPECIAL_PUSH(0,0, goal.SMEMBER_name), -- 0
-    MEMBER_PUSH(0,0, goal.OMEMBER_Receiver), -- 1
+    SPECIAL_PUSH(0,0, goal.SMEMBER_receiver), -- 1
     SPECIAL_PUSH(2,0, goal.SMEMBER_type), -- 2
     PUSH(2), -- 3
     JMP_FALSE(10), -- Jump to nil case -- 4

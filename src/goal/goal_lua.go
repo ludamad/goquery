@@ -81,11 +81,9 @@ var _API luar.Map = luar.Map{
 	"BC_SPRINTFN":     BC_SPRINTFN,
 	"Bytecode":        func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
-	"OMEMBER_Signature": OMEMBER_Signature,
-	"OMEMBER_Receiver":  OMEMBER_Receiver,
+	"TypeInfo": _TYPE_INFO,
 
-	"LMEMBER_Methods": LMEMBER_Methods,
-
+	"SMEMBER_receiver":  SMEMBER_receiver,
 	"SMEMBER_name":     SMEMBER_name,
 	"SMEMBER_location": SMEMBER_location,
 	"SMEMBER_type":     SMEMBER_type,

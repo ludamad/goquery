@@ -47,20 +47,10 @@ const (
 	BC_SPRINTFN // Takes <N>, first string is treated as format specifier, pops N, pushes string
 )
 
-// Object members
-const (
-	OMEMBER_Signature = iota
-	OMEMBER_Receiver
-)
-
-// Loopable members
-const (
-	LMEMBER_Methods = iota
-)
-
 // Special members
 const (
 	SMEMBER_location = iota
 	SMEMBER_type
 	SMEMBER_name
+	SMEMBER_receiver
 )

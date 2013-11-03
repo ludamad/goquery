@@ -380,9 +380,12 @@ function VarBuilder:__call(k)
     if type(k) == "string" then return exprs.Var(k .. "." .. self.repr) end
     return exprs.Var(self.repr .. k.repr)
 end
- -- Discover all Go AST variable names
-for k,v in pairs(goal) do
-    if k:find("SMEMBER_") == 1 or k:find("OMEMBER_") == 1 then k = k:sub(#"MEMBER_" + 2) ; _G[k] = VarBuilder(k) end
+for k,v in pairs(goal) do -- Find all 'special' member names
+    if k:find("SMEMBER_") == 1 then k = k:sub(#"SMEMBER_" + 1) ; _G[k] = VarBuilder(k) end
+     -- Expose all object members
+    for _, k in ipairs(goal.TypeInfo.TypeMembers) do
+         _G[k] = VarBuilder(k)
+    end
 end
 -- Discover all child labels for all complex nodes:
 local function makeNT(...)

@@ -23,18 +23,18 @@ These Lua functions produce labelled nodes (we will call them **label-nodes**). 
 1) Expression nodes
 -
 
-Expression nodes evaluate **to arbitrary Go objects**, including possibly any type in GoAL runtime (not in the program you are analyzing!). Being a source-code oriented DSL, you often want information extracted from nodes as convenient strings. A few special variable names exist for members of the [go.ast package](http://golang.org/pkg/go/ast/):
+Expression nodes evaluate **to arbitrary Go objects**, including possibly any type in GoAL runtime (not in the program you are analyzing!).
+A few special variable names exist for members of the [go.ast package](http://golang.org/pkg/go/ast/):
 
 + type: Return a unique string type representation of the node's .Type member, if it has one.
-
 + location: Return a location string that will be unique for the node **within its type**.
-+ name: Return a the name of any string with a .Name node (an alias for Name.Name)
-
++ name: Return the name of any string with a .Name node (an alias for Name.Name)
++ receiver: Return the receiver type of a function (alias for Recv.List[0])
 
 **Object access operators** occur in two forms:  
 
-+ **Receiver**.**type** "f"
-+ **type**(**Receiver** "f")
++ **receiver**.**type** "f"
++ **type**(**receiver** "f")
     
 The flexibility in syntax makes object expressions easily composable (See **Compose** below).
 
@@ -79,7 +79,7 @@ Root level functions
     Event takes a list of varied arguments:  
     
     + Expressions of the form eg (**FuncDecl** "f") define new objects. Any type name from the [go.ast package](http://golang.org/pkg/go/ast/) is valid.  
-    + You can assign names to multiple nodes at once via eg (FuncDecl.Receiver "fd.r") would be the same as defining (FuncDecl "fd") and also setting its receiver to "r".
+    + You can assign names to multiple nodes at once via eg (FuncDecl.receiver "fd.r") would be the same as defining (FuncDecl "fd") and also setting its receiver to "r".
     + You can optionally specify a **CaseSet** by name. Only one **Event** with the **CaseSet** name will execute.
     + You can optionally specify a **EventSet** by name. **EventSet**s are used by **Analyze** to selectively execute **Event**s.
     + **ForAll** can be embedded, see above.
@@ -101,7 +101,7 @@ These two related functions can compose any of the nodes above (*whether or not 
 
     Return a new function that applies **Func2** to all parameters, and passes the result to **Func1**.
 
-    *Example*: **GetReceiverName** = **Compose**(**name**, **Receiver**)  
+    *Example*: **GetReceiverName** = **Compose**(**name**, **receiver**)  
     *Example Usage*: **Printf** ("%s\n", **GetReceiverName** "f")
 
 + **Inject**(function **Func1**, function **Func2**, param N (default first))  

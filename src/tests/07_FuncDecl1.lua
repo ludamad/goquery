@@ -9,7 +9,7 @@ Analyze (
 
 -- Simple conditional
 Event(FuncDecl "f") (
-    Case(Receiver "f")(Printf "Cond1\n")(Otherwise)(Printf "Cond2\n")
+    Case(receiver "f")(Printf "Cond1\n")(Otherwise)(Printf "Cond2\n")
 )
 
 Analyze (
@@ -17,8 +17,8 @@ Analyze (
 )
 
 Event(FuncDecl "f") (
-    Case (Receiver "f") (
-        Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", Receiver.type "f")
+    Case (receiver "f") (
+        Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", receiver.type "f")
     ) (Otherwise) (
         Printf("Conditional: Function '%s' has no receiver type.\n", name "f")
     )

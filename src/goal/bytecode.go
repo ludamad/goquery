@@ -17,19 +17,19 @@ type LoopContext struct {
 type BytecodeContext struct {
 	Bytecodes []Bytecode
 	Index     int // Instruction pointer
-	Stack     []interface{}
-	Constants []interface{}
+	Stack     []goalRef
+	Constants []goalRef
 	LoopStack []LoopContext
 }
 
 func NewBytecodeContext() *BytecodeContext {
-	return &BytecodeContext{[]Bytecode{}, 0, []interface{}{}, []interface{}{}, []LoopContext{}}
+	return &BytecodeContext{[]Bytecode{}, 0, []goalRef{}, []goalRef{}, []LoopContext{}}
 }
 
 func (bc *BytecodeContext) copyStrings(num int) []string {
 	tuple := make([]string, num)
 	for i, v := range bc.Stack[len(bc.Stack)-num:] {
-		tuple[i] = v.(string)
+		tuple[i] = v.value.(string)
 	}
 	return tuple
 }
@@ -38,14 +38,14 @@ func (bc *BytecodeContext) concatStrings(num int) {
 	top := len(bc.Stack)
 	b := bytes.NewBufferString("")
 	for i := top - num; i < top; i++ {
-		b.WriteString(bc.Stack[i].(string))
+		b.WriteString(bc.Stack[i].value.(string))
 	}
 	bc.popN(num)
-	bc.push(b.String())
+	bc.push(makeStrRef(b.String()))
 }
 
 func (bc *BytecodeContext) PushConstant(constant interface{}) {
-	bc.Constants = append(bc.Constants, constant)
+	bc.Constants = append(bc.Constants, makeGoalRef(constant))
 }
 
 func (bc *BytecodeContext) PushBytecode(code Bytecode) int {
@@ -69,11 +69,11 @@ func (bc *BytecodeContext) popLoop() {
 	bc.LoopStack = bc.LoopStack[:len(bc.LoopStack)-1]
 }
 
-func (bc *BytecodeContext) push(obj interface{}) {
+func (bc *BytecodeContext) push(obj goalRef) {
 	bc.Stack = append(bc.Stack, obj)
 }
 
-func (bc *BytecodeContext) peek(idx int) interface{} {
+func (bc *BytecodeContext) peek(idx int) goalRef {
 	return bc.Stack[len(bc.Stack)-idx]
 }
 

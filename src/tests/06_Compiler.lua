@@ -23,7 +23,7 @@ Test(
 C = goal.Compiler "FD"
 Test(
     SNodes.Case(C, {
-        {Receiver "FD", goal.CodeBlock(Print "Simple case: Meets conditional\n\n")},
+        {receiver "FD", goal.CodeBlock(Print "Simple case: Meets conditional\n\n")},
         {Otherwise, goal.CodeBlock(Print "Simple case: Does not meet conditional\n")}
     })
 )
@@ -31,7 +31,7 @@ Test(
 C = goal.Compiler "FD"
 Test(
     SNodes.Case(C, {
-        {Receiver "FD", goal.CodeBlock(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", Receiver.type "FD"))}, 
+        {receiver "FD", goal.CodeBlock(Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", receiver.type "FD"))}, 
         {Otherwise, goal.CodeBlock(Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD"))}
     })
 )
