@@ -147,8 +147,17 @@ func makeTypeInfo() typeInfo {
 
 var _TYPE_INFO typeInfo = makeTypeInfo()
 
+func resolveType(value interface{}) reflect.Type {
+	typ := reflect.TypeOf(value)
+	if typ.Kind() == reflect.Ptr {
+		return typ.Elem()
+	} else {
+		return typ
+	}
+}
+
 func makeGoalRef(value interface{}) goalRef {
-	return goalRef{_TYPE_INFO.typeTables[reflect.TypeOf(value)], value}
+	return goalRef{_TYPE_INFO.typeTables[resolveType(value)], value}
 }
 
 func makeStrRef(value interface{}) goalRef {
@@ -195,7 +204,10 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) goalRef {
 	ref := bc.Stack[objIdx]
+	if ref.Value != nil && ref.typeTable == nil {
+		ref.typeTable = _TYPE_INFO.typeTables[reflect.TypeOf(ref.Value).Elem()]
+	}
 	idx := ref.memberIndices[memberIdx]
 	typ := ref.memberTypes[memberIdx]
-	return goalRef{typ, reflect.ValueOf(ref.Value).FieldByIndex(idx).Interface()}
+	return goalRef{typ, reflect.Indirect(reflect.ValueOf(ref.Value)).FieldByIndex(idx).Interface()}
 }

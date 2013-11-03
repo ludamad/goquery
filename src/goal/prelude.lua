@@ -400,15 +400,21 @@ local function resolveTableNode(t, C, ...)
 end
 -- Discover all statement & expression label nodes:
 for label,v in pairsAll(SNodes, ENodes) do _G[label] = rawget(_G, label) or function(...) return simpleNode(label, ...) end end
+local eventChildren = {}
+for k, v in pairs(goal.TypeInfo.NameToType) do eventChildren[k] = valueNode end 
 -- Root level functions
 for root in values {
     makeNT("Analyze", { Files = listNode }, true, 
         function(t)
             ColorPrint("36;1", "-- ANALYZING:\n")
-            goal.GlobalSymbolContext.AnalyzeAll(t.values.Files)
+            local files = {} ; for v in values(t.values.Files) do 
+                if type(v) == "table" then Map(Curry(append,files), v)
+                else append(files,v) end
+            end 
+            goal.GlobalSymbolContext.AnalyzeAll(files)
             ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end),
-    makeNT("Event", { FuncDecl = valueNode }, true,
+    makeNT("Event", eventChildren, true,
         function(t)
             local event, varName = table.next(t.values) -- Find first
             return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
@@ -419,6 +425,12 @@ local function constantN(val)
     return function(C) 
         return function() C.CompileConstant(true) end 
     end 
+end
+function FindFiles(dir)
+    local args = {}
+    local files = goal.FindGoFiles(dir)
+    for i=1,#files do args[i]=files[i] end
+    return args
 end
 True, False = constantN(true), constantN(false)
 Otherwise = True ; Always = True

@@ -32,11 +32,11 @@ func (bc *BytecodeContext) printN(n int) {
 	if n == 1 {
 		fmt.Print(fmtString)
 	} else {
-		args := bc.copyStrings(n - 1)
+		args := bc.Stack[len(bc.Stack)-(n-1):]
 		// Helper to coerce []string -> ...interface{} (via ...string)
 		iargs := make([]interface{}, len(args))
 		for i := range args {
-			iargs[i] = args[i]
+			iargs[i] = args[i].Value
 		}
 		fmt.Printf(fmtString, iargs...)
 	}
@@ -83,7 +83,7 @@ func (bc BytecodeExecContext) execOne() {
 		}
 	case BC_JMP_FALSE:
 		topVal := bc.peek(1).Value
-		if topVal == nil || topVal == false || topVal == ""  {
+		if topVal == nil || topVal == false || topVal == "" {
 			bc.Index = code.Bytes1to3()
 		}
 		bc.popN(1)

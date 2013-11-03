@@ -18,7 +18,7 @@ Analyze (
 
 Event(FuncDecl "f") (
     Case (receiver "f") (
-        Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", receiver.type "f")
+        Printf("Conditional: Function '%s' has receiver type '%s'.\n", name "f", receiver.type "f")        
     ) (Otherwise) (
         Printf("Conditional: Function '%s' has no receiver type.\n", name "f")
     )
