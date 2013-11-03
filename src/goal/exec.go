@@ -28,7 +28,7 @@ func (bc *BytecodeContext) tryLoop(hasStarted bool) {
 }
 
 func (bc *BytecodeContext) printN(n int) {
-	fmtString := bc.peek(n).value.(string)
+	fmtString := bc.peek(n).Value.(string)
 	if n == 1 {
 		fmt.Print(fmtString)
 	} else {
@@ -82,7 +82,7 @@ func (bc BytecodeExecContext) execOne() {
 			bc.push(makeStrRef(tuple))
 		}
 	case BC_JMP_FALSE:
-		topVal := bc.peek(1).value
+		topVal := bc.peek(1).Value
 		if topVal == nil || topVal == false || topVal == ""  {
 			bc.Index = code.Bytes1to3()
 		}

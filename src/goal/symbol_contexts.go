@@ -17,7 +17,7 @@ type GlobalSymbolContext struct {
 }
 
 func NewGlobalContext() *GlobalSymbolContext {
-	return &GlobalSymbolContext{MakeMemoryStore([]TupleSchema{}), token.NewFileSet(), &EventContext{}, map[string]*ast.File{}, map[ast.Expr]types.Type{}}
+	return &GlobalSymbolContext{MakeMemoryStore([]TupleSchema{}), token.NewFileSet(), NewEventContext(), map[string]*ast.File{}, map[ast.Expr]types.Type{}}
 }
 
 func (context *GlobalSymbolContext) FileList() []*ast.File {

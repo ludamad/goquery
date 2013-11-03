@@ -13,7 +13,7 @@ type typeTable struct {
 
 type goalRef struct {
 	*typeTable
-	value interface{}
+	Value interface{}
 }
 
 func fillMemberNames(typ reflect.Type, members map[string]bool) {
@@ -41,29 +41,95 @@ func makeTypeTable(tInfo *typeInfo, typ reflect.Type) {
 
 type typeInfo struct {
 	typeTables       map[reflect.Type]*typeTable
-	stringTypeTable *typeTable
-	fieldTypeTable *typeTable
+	stringTypeTable  *typeTable
+	fieldTypeTable   *typeTable
 	TypeMembers      []string
 	stringToMemberId map[string]int
+	NameToType map[string]reflect.Type
 }
 
 func makeTypeInfo() typeInfo {
+	// If it makes you feel any better, the following code wasn't handwritten.
 	types := []reflect.Type{
 		reflect.TypeOf(""),
-		reflect.TypeOf((*ast.FuncDecl)(nil)).Elem(),
-		reflect.TypeOf((*ast.Field)(nil)).Elem(),
-		reflect.TypeOf((*ast.TypeSpec)(nil)).Elem(),
-		reflect.TypeOf((*ast.InterfaceType)(nil)).Elem(),
-		reflect.TypeOf((*ast.Ident)(nil)).Elem(),
+		reflect.TypeOf((*ast.ArrayType)(nil)).Elem(),
+		reflect.TypeOf((*ast.AssignStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.BadDecl)(nil)).Elem(),
 		reflect.TypeOf((*ast.BadExpr)(nil)).Elem(),
-	}
-
-	members := map[string]bool{}
-	for _, typ := range types {
-		fillMemberNames(typ, members)
+		reflect.TypeOf((*ast.BadStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.BasicLit)(nil)).Elem(),
+		reflect.TypeOf((*ast.BinaryExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.BlockStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.BranchStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.CallExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.CaseClause)(nil)).Elem(),
+		reflect.TypeOf((*ast.ChanDir)(nil)).Elem(),
+		reflect.TypeOf((*ast.ChanType)(nil)).Elem(),
+		reflect.TypeOf((*ast.CommClause)(nil)).Elem(),
+		reflect.TypeOf((*ast.Comment)(nil)).Elem(),
+		reflect.TypeOf((*ast.CommentGroup)(nil)).Elem(),
+		reflect.TypeOf((*ast.CommentMap)(nil)).Elem(),
+		reflect.TypeOf((*ast.CompositeLit)(nil)).Elem(),
+		reflect.TypeOf((*ast.Decl)(nil)).Elem(),
+		reflect.TypeOf((*ast.DeclStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.DeferStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.Ellipsis)(nil)).Elem(),
+		reflect.TypeOf((*ast.EmptyStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.Expr)(nil)).Elem(),
+		reflect.TypeOf((*ast.ExprStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.Field)(nil)).Elem(),
+		reflect.TypeOf((*ast.FieldFilter)(nil)).Elem(),
+		reflect.TypeOf((*ast.FieldList)(nil)).Elem(),
+		reflect.TypeOf((*ast.File)(nil)).Elem(),
+		reflect.TypeOf((*ast.Filter)(nil)).Elem(),
+		reflect.TypeOf((*ast.ForStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.FuncDecl)(nil)).Elem(),
+		reflect.TypeOf((*ast.FuncLit)(nil)).Elem(),
+		reflect.TypeOf((*ast.FuncType)(nil)).Elem(),
+		reflect.TypeOf((*ast.GenDecl)(nil)).Elem(),
+		reflect.TypeOf((*ast.GoStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.Ident)(nil)).Elem(),
+		reflect.TypeOf((*ast.IfStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.ImportSpec)(nil)).Elem(),
+		reflect.TypeOf((*ast.Importer)(nil)).Elem(),
+		reflect.TypeOf((*ast.IncDecStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.IndexExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.InterfaceType)(nil)).Elem(),
+		reflect.TypeOf((*ast.KeyValueExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.LabeledStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.MapType)(nil)).Elem(),
+		reflect.TypeOf((*ast.MergeMode)(nil)).Elem(),
+		reflect.TypeOf((*ast.Node)(nil)).Elem(),
+		reflect.TypeOf((*ast.ObjKind)(nil)).Elem(),
+		reflect.TypeOf((*ast.Object)(nil)).Elem(),
+		reflect.TypeOf((*ast.Package)(nil)).Elem(),
+		reflect.TypeOf((*ast.ParenExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.RangeStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.ReturnStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.Scope)(nil)).Elem(),
+		reflect.TypeOf((*ast.SelectStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.SelectorExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.SendStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.SliceExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.Spec)(nil)).Elem(),
+		reflect.TypeOf((*ast.StarExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.Stmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.StructType)(nil)).Elem(),
+		reflect.TypeOf((*ast.SwitchStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.TypeAssertExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.TypeSpec)(nil)).Elem(),
+		reflect.TypeOf((*ast.TypeSwitchStmt)(nil)).Elem(),
+		reflect.TypeOf((*ast.UnaryExpr)(nil)).Elem(),
+		reflect.TypeOf((*ast.ValueSpec)(nil)).Elem(),
+		reflect.TypeOf((*ast.Visitor)(nil)).Elem(),
 	}
 	tables := map[reflect.Type]*typeTable{}
-	tInfo := typeInfo{tables, nil, nil, []string{}, map[string]int{}}
+	tInfo := typeInfo{tables, nil, nil, []string{}, map[string]int{}, map[string]reflect.Type{}}
+	members := map[string]bool{}
+	for _, typ := range types {
+		tInfo.NameToType[typ.Name()] = typ
+		fillMemberNames(typ, members)
+	}
 	for member, _ := range members {
 		tInfo.stringToMemberId[member] = len(tInfo.TypeMembers)
 		tInfo.TypeMembers = append(tInfo.TypeMembers, member)
@@ -82,21 +148,21 @@ func makeTypeInfo() typeInfo {
 var _TYPE_INFO typeInfo = makeTypeInfo()
 
 func makeGoalRef(value interface{}) goalRef {
-	return goalRef {_TYPE_INFO.typeTables[reflect.TypeOf(value)], value}
+	return goalRef{_TYPE_INFO.typeTables[reflect.TypeOf(value)], value}
 }
 
 func makeStrRef(value interface{}) goalRef {
-	return goalRef {_TYPE_INFO.stringTypeTable, value}
+	return goalRef{_TYPE_INFO.stringTypeTable, value}
 }
 
 func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) goalRef {
 	n := bc.Stack[objIdx]
 
-	if n.value == nil {
+	if n.Value == nil {
 		return makeStrRef("")
 	}
 
-	switch node := n.value.(type) {
+	switch node := n.Value.(type) {
 	case *ast.FuncDecl:
 		if memberIdx == SMEMBER_type {
 			return makeStrRef(bc.ExprRepr(node.Type))
@@ -122,7 +188,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		}
 	}
 	if memberIdx == SMEMBER_location {
-		return makeStrRef(bc.PositionString(n.value.(ast.Node)))
+		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
 	}
 	panic("resolveStringMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n).String())
 }
@@ -131,5 +197,5 @@ func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) go
 	ref := bc.Stack[objIdx]
 	idx := ref.memberIndices[memberIdx]
 	typ := ref.memberTypes[memberIdx]
-	return goalRef{typ, reflect.ValueOf(ref.value).FieldByIndex(idx).Interface()}
+	return goalRef{typ, reflect.ValueOf(ref.Value).FieldByIndex(idx).Interface()}
 }

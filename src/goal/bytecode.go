@@ -29,7 +29,7 @@ func NewBytecodeContext() *BytecodeContext {
 func (bc *BytecodeContext) copyStrings(num int) []string {
 	tuple := make([]string, num)
 	for i, v := range bc.Stack[len(bc.Stack)-num:] {
-		tuple[i] = v.value.(string)
+		tuple[i] = v.Value.(string)
 	}
 	return tuple
 }
@@ -38,7 +38,7 @@ func (bc *BytecodeContext) concatStrings(num int) {
 	top := len(bc.Stack)
 	b := bytes.NewBufferString("")
 	for i := top - num; i < top; i++ {
-		b.WriteString(bc.Stack[i].value.(string))
+		b.WriteString(bc.Stack[i].Value.(string))
 	}
 	bc.popN(num)
 	bc.push(makeStrRef(b.String()))

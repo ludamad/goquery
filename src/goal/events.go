@@ -2,53 +2,35 @@ package goal
 
 import (
 	"go/ast"
+	"reflect"
 )
 
-type TypeSpecEvents struct {
-	InterfaceType *BytecodeContext
-}
-
 type EventContext struct {
-	FuncDecl  *BytecodeContext
-	TypeSpecEvents TypeSpecEvents
+	Events map[reflect.Type]*BytecodeContext
 }
 
 func NewEventContext() *EventContext {
-	return new(EventContext)
+	return &EventContext{map[reflect.Type]*BytecodeContext{}}
 }
 
 type traverseContext struct {
 	*EventContext
 	globSym *GlobalSymbolContext
-	file *FileSymbolContext
+	file    *FileSymbolContext
 }
-
-func (ev *traverseContext) event(bc *BytecodeContext, objs ...interface{}) {
-	if bc != nil {
-		bc.Exec(ev.globSym, ev.file, objs)
-	}
-}
-
 
 func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
-	switch node := n.(type) {
-	case *ast.FuncDecl:
-		ev.event(ev.FuncDecl, node)
-	case *ast.TypeSpec:
-		ev.handleTypeSpecNode(node)
+	if reflect.TypeOf(n) == nil {
+		return ev
+	}
+	bc := ev.Events[reflect.TypeOf(n).Elem()]
+	if bc != nil {
+		bc.Exec(ev.globSym, ev.file, []interface{}{n})
 	}
 	return ev
 }
 
-func (ev *traverseContext) handleTypeSpecNode(t *ast.TypeSpec) {
-	typeSpec := &ev.TypeSpecEvents
-	switch t.Type.(type) {
-	case *ast.InterfaceType:
-		ev.event(typeSpec.InterfaceType, t, t.Type)
-	}
-}
-
 func (ev *EventContext) Analyze(globSym *GlobalSymbolContext, fileSym *FileSymbolContext) {
-	tcontext := traverseContext {ev, globSym, fileSym}
+	tcontext := traverseContext{ev, globSym, fileSym}
 	ast.Walk(&tcontext, fileSym.File)
 }

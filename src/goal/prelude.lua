@@ -123,7 +123,7 @@ end
 -- For testing purposes:
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
-function goal.SetEvent(type, ev) prettyBytecode(ev) ; events[type] = ev end
+function goal.SetEvent(type, ev) prettyBytecode(ev) ; events.Events[goal.TypeInfo.NameToType[type]] = ev end
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
@@ -222,15 +222,17 @@ function Compiler:ResolveObject(parts)
     end
     return node
 end
+local varIds = {}
+for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i - 1 end
 function Compiler:CompileObjectRef(str)
     local parts = str:split(".")
     local obj, name = self.ResolveObject(parts), parts[#parts]
     -- First pass: Push all submembers onto stack
     local idx = obj.ResolveIndex(function(obj, idx)
         local parts = str:split(".")
-        local obj, name = self.ResolveObject(parts), parts[#parts] 
+        local obj, name = self.ResolveObject(parts), parts[#parts]
         local isSpecial = name:match("^%l")
-        local ref = goal[(isSpecial and "SMEMBER_" or "OMEMBER_") .. name] 
+        local ref ; if isSpecial then ref = goal["SMEMBER_".. name] else ref = varIds[name] end  
         if idx > 0 then
             self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.ResolveIndex(), ref)
         end end)
@@ -382,10 +384,6 @@ function VarBuilder:__call(k)
 end
 for k,v in pairs(goal) do -- Find all 'special' member names
     if k:find("SMEMBER_") == 1 then k = k:sub(#"SMEMBER_" + 1) ; _G[k] = VarBuilder(k) end
-     -- Expose all object members
-    for _, k in ipairs(goal.TypeInfo.TypeMembers) do
-         _G[k] = VarBuilder(k)
-    end
 end
 -- Discover all child labels for all complex nodes:
 local function makeNT(...)
@@ -424,3 +422,8 @@ local function constantN(val)
 end
 True, False = constantN(true), constantN(false)
 Otherwise = True ; Always = True
+ -- Expose all object members
+for i=1,#goal.TypeInfo.TypeMembers do
+    local k = goal.TypeInfo.TypeMembers[i]
+     _G[k] = rawget(_G, k) or VarBuilder(goal.TypeInfo.TypeMembers[i])
+end
