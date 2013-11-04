@@ -1,36 +1,13 @@
 package goal
 
 import "fmt"
+import "reflect"
 
-func (bc *BytecodeContext) scanForLoopEnd(start int) int {
-	for i := start; i < len(bc.Bytecodes); i++ {
-		if bc.Bytecodes[i].Code == BC_LOOP_CONTINUE {
-			return i
-		}
-	}
-	panic("scanForLoopEnd could not find end!")
-}
-
-func (bc *BytecodeContext) tryLoop(hasStarted bool) {
-	loop := bc.LoopStack[len(bc.LoopStack)-1]
-	if loop.Controller.Enter(bc) {
-		// Loop was entered, go to start index
-		bc.Index = loop.StartIndex
-	} else {
-		if hasStarted {
-			// Already at end, clean up stacks
-			loop.Controller.Exit(bc)
-		} else {
-			// Stacks already clean, jump to end
-			bc.Index = bc.scanForLoopEnd(loop.StartIndex)
-		}
-	}
-}
-
-func (bc *BytecodeContext) printN(n int) {
+func (bc *BytecodeContext) sprintN(n int) string {
 	fmtString := bc.peek(n).Value.(string)
+	var str string
 	if n == 1 {
-		fmt.Print(fmtString)
+		str = fmtString
 	} else {
 		args := bc.Stack[len(bc.Stack)-(n-1):]
 		// Helper to coerce []string -> ...interface{} (via ...string)
@@ -38,15 +15,30 @@ func (bc *BytecodeContext) printN(n int) {
 		for i := range args {
 			iargs[i] = args[i].Value
 		}
-		fmt.Printf(fmtString, iargs...)
+		str = fmt.Sprintf(fmtString, iargs...)
 	}
 	bc.popN(n)
+	return str
 }
 
 type BytecodeExecContext struct {
 	*BytecodeContext
 	*GlobalSymbolContext
 	*FileSymbolContext
+}
+
+func isTrueValue(val interface{}) bool {
+	return (val == nil || val == false || val == "");
+}
+
+func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) goalRef {
+	switch id {
+		case BIN_OP_AND: if !isTrueValue(val1.Value) { return val1 } else {return val2 }
+		case BIN_OP_OR: if isTrueValue(val1.Value) { return val1 } else {return val2 }
+		case BIN_OP_XOR: if isTrueValue(val1.Value) != isTrueValue(val2.Value) { return makeBoolRef(true) } else {makeBoolRef(false) }
+		case BIN_OP_TYPECHECK: if resolveType(val2.Value) == val1.Value.(reflect.Type) { return makeBoolRef(true) } else {return makeBoolRef(false) }
+	}
+	panic("Unexpected bin op")
 }
 
 func (bc BytecodeExecContext) execOne() {
@@ -64,8 +56,25 @@ func (bc BytecodeExecContext) execOne() {
 	case BC_PUSH:
 		obj := bc.Stack[code.Bytes1to3()]
 		bc.push(obj)
+	case BC_PUSH_NIL:
+		bc.push(makeStrRef(nil))
 	case BC_POPN:
 		bc.popN(code.Bytes1to3())
+	case BC_NEXT:
+		obj,idxObj,idx := bc.peek(2), bc.peek(1),0
+		if idxObj.Value != nil {
+			idx = idxObj.Value.(int)
+		}
+		bc.popN(1) ; val := reflect.ValueOf(obj.Value)
+		if val.Type().Kind() != reflect.Slice {
+			panic("Can only iterate over slices!")
+		}
+		if val.Len() >= idx {
+			bc.popN(1)
+			bc.Index = code.Bytes1to3()
+		}
+		bc.push(makeIntRef(idx+1))
+		bc.push(makeGoalRef(val.Index(idx)))
 	case BC_CONCATN:
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
@@ -82,24 +91,22 @@ func (bc BytecodeExecContext) execOne() {
 			bc.push(makeStrRef(tuple))
 		}
 	case BC_JMP_FALSE:
-		topVal := bc.peek(1).Value
-		if topVal == nil || topVal == false || topVal == "" {
+		if isTrueValue(bc.peek(1).Value) {
 			bc.Index = code.Bytes1to3()
 		}
 		bc.popN(1)
-	case BC_BOOL_AND: // Evaluates an object-oriented 'and' of the top two elements, pops both, pushes result
-		panic("TODO")
-	case BC_BOOL_OR: // Evaluates an object-oriented 'or' of the top two elements, pops both, pushes result
-		panic("TODO")
-	case BC_BOOL_XOR: // Evaluates a 'xor' of the top two elements, pops both, pushes result
-		panic("TODO")
-	case BC_BOOL_NOT: // Evaluates a 'not' of the top element, pops it, pushes result
-		panic("TODO")
+	case BC_BIN_OP:
+		obj := bc.resolveBinOp(code.Bytes1to3(), bc.peek(2), bc.peek(1))
+		bc.popN(2);
+		bc.push(obj)
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
 	case BC_PRINTFN:
 		n := code.Bytes1to3()
-		bc.printN(n)
+		fmt.Print(bc.sprintN(n))
+	case BC_SPRINTFN:
+		n := code.Bytes1to3()
+		bc.push(makeStrRef(bc.sprintN(n)))
 	default:
 		panic("Bad bytes!")
 	}

@@ -63,20 +63,17 @@ var _API luar.Map = luar.Map{
 	// See codes.go for details:
 	"BC_CONSTANT":     BC_CONSTANT,
 	"BC_PUSH":         BC_PUSH,
+	"BC_PUSH_NIL":         BC_PUSH_NIL,
 	"BC_MEMBER_PUSH":  BC_MEMBER_PUSH,
 	"BC_SPECIAL_PUSH": BC_SPECIAL_PUSH,
-	"BC_LOOP_PUSH":    BC_LOOP_PUSH,
 	"BC_POPN":         BC_POPN,
 	"BC_CONCATN":      BC_CONCATN,
 	"BC_SAVE_TUPLE":   BC_SAVE_TUPLE,
 	"BC_LOAD_TUPLE":   BC_LOAD_TUPLE,
 	"BC_MAKE_TUPLE":   BC_MAKE_TUPLE,
 	"BC_JMP_FALSE":    BC_JMP_FALSE,
+	"BC_BIN_OP":    BC_BIN_OP,
 	"BC_JMP":          BC_JMP,
-	"BC_BOOL_AND":     BC_BOOL_AND,
-	"BC_BOOL_OR":      BC_BOOL_OR,
-	"BC_BOOL_XOR":     BC_BOOL_XOR,
-	"BC_BOOL_NOT":     BC_BOOL_NOT,
 	"BC_PRINTFN":      BC_PRINTFN,
 	"BC_SPRINTFN":     BC_SPRINTFN,
 	"Bytecode":        func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
@@ -87,6 +84,13 @@ var _API luar.Map = luar.Map{
 	"SMEMBER_name":     SMEMBER_name,
 	"SMEMBER_location": SMEMBER_location,
 	"SMEMBER_type":     SMEMBER_type,
+	
+	"BIN_OP_AND"  : BIN_OP_AND,
+	"BIN_OP_OR"  : BIN_OP_OR,
+	"BIN_OP_XOR"  : BIN_OP_XOR,
+	"BIN_OP_TYPECHECK" : BIN_OP_TYPECHECK,
+
+	"UNARY_OP_NOT" : UNARY_OP_NOT,
 }
 
 func NewGoalLuaContext(namespace string) *lua.State {
@@ -98,6 +102,10 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	if !ok {
 		panic("Prelude is damaged.")
 	}
+	ok = LuaDoFile(L, "src/goal/macros.lua")
+	if !ok {
+		panic("Macro library is damaged.")
+	}
 	return L
 }
 
@@ -107,7 +115,8 @@ func errorReportingCall(L *lua.State) bool {
 		if r := recover(); r != nil {
 			fmt.Print(colorify("An error has occurred!\n", "31;1"))
 			fmt.Print(colorify(r, "31"))
-			if strings.Contains(r.(*lua.LuaError).Error(), "runtime error") {
+			errS := r.(*lua.LuaError).Error()
+			if strings.Contains(errS, "runtime error") || strings.Contains(errS, "interface conversion") {
 				fmt.Printf("\nFull Go Stack:\n%s", colorify(debug.Stack(), "35;1"))
 			}
 			traceback, _ := luar.NewLuaObjectFromName(L, "debug.traceback").Call("")

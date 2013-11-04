@@ -74,7 +74,7 @@ local function pretty_s(val)
     end
     local info = debug.getinfo(val)
     local ups = "{" ; for i=1,info.nups do 
-        local k, v = debug.getupvalue(val,i) ; ups = ups .. k .."="..pretty_s(v)..","
+        local k, v = debug.getupvalue(val,i) ; ups = ups .. k .."="..tostring(v)..","
     end
     return "function " .. info.source .. ":" .. info.linedefined .. "-" .. info.lastlinedefined .. ups .. '}'
 end
@@ -126,7 +126,18 @@ function prettyBytecode(bc)
             print("Jump I: " .. code.Bytes1to3())
         elseif v == goal.BC_PRINTFN then
             print("PrintF N: " .. code.Bytes1to3())
-        else
+        elseif v == goal.BC_BIN_OP then
+            local op = code.Bytes1to3()
+            if op == goal.BIN_OP_AND then
+                print("AND")
+            elseif op == goal.BIN_OP_OR then
+                print("OR")
+            elseif op == goal.BIN_OP_XOR then
+                print("XOR")
+            elseif op == goal.BIN_OP_TYPECHECK then 
+                print("TYPECHECK")
+            end
+        else 
             print("Unknown code " .. v)
         end
     end

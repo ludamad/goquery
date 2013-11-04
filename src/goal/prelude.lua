@@ -196,10 +196,10 @@ function Compiler:Compile12_3(code, arg1, arg2)
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
  -- Compilation occurs in two passes, the first pass returns a function that performs the second pass
-function Compiler:CompileAll() self.nodes(self)(self) end
+function Compiler:CompileAll() pretty(unpack(self.nodes.block)) ;  self.nodes(self)(self) end
 function Compiler:AddNodes(nodes) self.nodes.AddAll(nodes) end
 function Compiler:CompileConstant(constant)
-    assert(type(constant) ~= "table" and type(constant) ~= "userdata") ; self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
+    assert(type(constant) ~= "table") ; self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
 end
 function Compiler:ResolveConstant(constant)
     local index = self.constantMap[constant]
@@ -224,7 +224,7 @@ function Compiler:ResolveObject(parts)
 end
 local varIds = {}
 for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i - 1 end
-function Compiler:CompileObjectRef(str)
+function Compiler:ResolveObjectRef(str)
     local parts = str:split(".")
     local obj, name = self.ResolveObject(parts), parts[#parts]
     -- First pass: Push all submembers onto stack
@@ -235,13 +235,17 @@ function Compiler:CompileObjectRef(str)
         local ref ; if isSpecial then ref = goal["SMEMBER_".. name] else ref = varIds[name] end  
         if idx > 0 then
             self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.ResolveIndex(), ref)
-        end end)
+        end end
+    )
     return function() self.Compile123("BC_PUSH", idx) end
 end
 
 function goal.Compile(nodes, --[[Optional]] varname)
+    for i,n in ipairs(nodes) do
+        pretty(i..")", n)
+    end
     local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; 
-    prettyBytecode(C.bytes) ; return C.bytes
+    return C.bytes
 end
 ---------------------------------------------------------------------------------
 -- Helpers for defining types of nodes
@@ -288,7 +292,7 @@ function NodeTransformer:Apply(labelNode, --[[Optional]] compiler)
                 converted = true ; break
             end
         end
-        assert(converted, ("The label-node '%s' is not valid inside '%s!'"):format(c.label, self.label))
+        assert(converted, ("The label-node '%s' is not valid inside '%s!'"):format(tostring(c.label), tostring(self.label)))
     end
     local value = (self.convertListToTable and nodeMap or transformedNodes)
     return self.transformer(makeLabelNode(self.label, value), --[[Optional]] compiler)
@@ -311,46 +315,54 @@ NBlock = class "NBlock" ; goal.NBlock = NBlock-- A linear block of code nodes
 function NBlock:init(--[[Optional]] block) self.block = block or {} end
 function NBlock:Add(node) append(self.block, assert(node)) end
 function NBlock:AddAll(nodes) Map(self.Add, nodes) end
-local function resolvePass(C, nodes) return Map(function(f) return f(C) end, nodes) end
+local function resolvePass(C, nodes, --[[Optional]] dontExpectRet)
+    local args = {} ; for f in values(nodes) do
+        local val = f(C)
+        if dontExpectRet and val then
+            pretty(f) ; error("Node tried to return a third pass!")
+        elseif not dontExpectRet and not val then 
+            pretty(f) ; error("Node did not return second pass!")
+        end ; append(args, val) 
+    end ; return args
+end
 -- Compiler comes in two passes -- resolve both using Map:
 function NBlock:__call(C)  
-    local nextBlock = resolvePass(C, self.block) ; return function() resolvePass(C, nextBlock) end
+    local nextBlock = resolvePass(C, self.block) ; return function() resolvePass(C, nextBlock, true) end
 end
  -- Holder of all possible statement nodes:
 local SNodes = {} ; goal.SNodes = SNodes
  -- Holder of all possible expression nodes:
 local ENodes = {} ; goal.ENodes = ENodes
 -- Create an AST node from a label-node using a given transformation table:
-local function nodeTransform(nodeTable, lnode) if type(lnode) == "function" then pretty(debug.getinfo(lnode)) end ; assert(lnode.label and lnode.values) ; return function(C) 
-    assert(SNodes[lnode.label], ("'%s' is not a valid code node!"):format(lnode.label))
-    return SNodes[lnode.label](C, unpack(lnode.values))
+local function nodeTransform(nodeTable, lnode) if type(lnode) == "function" then pretty(debug.getinfo(lnode)) end ; assert(lnode.label and lnode.values) ; 
+    return function(C) 
+        assert(nodeTable[lnode.label], ("'%s' is not a valid code node!"):format(lnode.label))
+        return nodeTable[lnode.label](C, unpack(lnode.values))
 end end
 -- Create an AST node from a list of label-nodes using SNodes:
 function goal.CodeParse(...) return Map(Curry(nodeTransform, SNodes), pack(...)) end
 function goal.CodeBlock(...) prettyAst(...) ; return NBlock(goal.CodeParse(...)) end
 -- Create an AST node from a label-node using SNodes:
-function goal.ExprParse(node) assert(#node.values==1); return nodeTransform(ENodes, node) end
+function goal.ExprParse(node) return type(node) == "function" and node or nodeTransform(ENodes, node) end
+function goal.ExpressionsParse(...) return Map(goal.ExprParse, pack(...)) end
 -- Program AST basic statements:
 local basic = {} ; goal.BasicSNodes = basic -- Basic statements
 function basic.Print(C, str)
     return function() C.CompileConstant(str) ; C.Compile123("BC_PRINTFN", 1) end
 end
 function basic.Printf(C, str, ...)
-    local args = pack(...) ; local n = #args+1
+    local args = goal.ExpressionsParse(...) ; local n = #args+1
     args = resolvePass(C, args)
-    return function(C) C.CompileConstant(str) ; resolvePass(C, args) ; C.Compile123("BC_PRINTFN", n) end
+    return function() C.CompileConstant(str) ; resolvePass(C, args, true) ; C.Compile123("BC_PRINTFN", n) end
 end
-local function callableLabelNode(label, values, f)
-    return setmetatable(makeLabelNode(label,values), {__call = function(self, ...) return f(...) end })
+function goal.CallableNode(labelNode, f)
+    return setmetatable(makeLabelNode(labelNode.label, labelNode.values), {__call = function(self, ...) return f(...) end })
 end
 function SNodes.Case(C, cases) 
-    print "first pass"
     -- First pass:
-    pretty("cases",cases)
-    for case in values(cases) do case[1] = case[1](C) ; case[2] = case[2](C) end
+    for case in values(cases) do 
+    case[1] = goal.ExprParse(case[1])(C) ; case[2] = case[2](C) end
     return function() -- Second pass:
-        print "second pass"
-        pretty(cases)
         local endJumps = {} -- Collect all jumps that lead to end
         for case in values(cases) do
             case[1]() ; local condCheck = C.CompilePlaceholder() -- Condition
@@ -363,15 +375,26 @@ function Case(expr)
     local cases = {} ; local addCondition, addStatements, finish
     function addCondition(cond) append(cases, {cond}) ; return addStatements end
     function addStatements(...) 
-        cases[#cases][2] = goal.CodeBlock(...) ; return callableLabelNode("Case", {cases}, addCondition)
+        cases[#cases][2] = goal.CodeBlock(...) ; return goal.CallableNode(makeLabelNode("Case", {cases}), addCondition)
     end
     return addCondition(expr)
 end
 table.merge(basic, SNodes) -- SNodes is a superset
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
-function exprs.Var(var)
-    return function(C) return C.CompileObjectRef(var) end
+function exprs.TypeCheck(C, typeExpr, objExpr)
+    local type = goal.TypeInfo.NameToType[typeExpr("").label] ; objExpr = objExpr(C)
+    return function() C.CompileConstant(type) ; objExpr(C) ; C.Compile123("BC_BIN_OP", goal.BIN_OP_TYPECHECK) end
+end
+local function binOp(op) return function(C, val1, val2)
+    val1 = val1(C) ; val2 = val2(C);
+    return function(C) val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
+end end
+for k,v in pairs { 
+    And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR,
+} do exprs[k] = binOp(v) end
+function Var(var)
+    return function(C) return C.ResolveObjectRef(var) end
 end
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
@@ -379,8 +402,8 @@ local VarBuilder = class "VarBuilder"
 function VarBuilder:init(repr) self.repr = repr end
 function VarBuilder:__index(k) return VarBuilder(self.repr .. '.' .. k) end
 function VarBuilder:__call(k)
-    if type(k) == "string" then return exprs.Var(k .. "." .. self.repr) end
-    return exprs.Var(self.repr .. k.repr)
+    if type(k) == "string" then return Var(k .. "." .. self.repr) end
+    return Var(self.repr .. k.repr)
 end
 for k,v in pairs(goal) do -- Find all 'special' member names
     if k:find("SMEMBER_") == 1 then k = k:sub(#"SMEMBER_" + 1) ; _G[k] = VarBuilder(k) end
@@ -398,6 +421,9 @@ end end
 local function resolveTableNode(t, C, ...) 
     local args,newArgs=pack(...),{} ; for v in values(args) do append(newArgs, t.values[v](C)) end ; return unpack(newArgs)
 end
+local resList = {} -- List of deferred functions, used for root-level call chains like Case
+function goal.FlushDefers() local R = resList ; resList = {} ; for r in values(R) do r() end end 
+function goal.Defer(v) goal.FlushDefers(); append(resList, v) end 
 -- Discover all statement & expression label nodes:
 for label,v in pairsAll(SNodes, ENodes) do _G[label] = rawget(_G, label) or function(...) return simpleNode(label, ...) end end
 local eventChildren = {}
@@ -406,6 +432,7 @@ for k, v in pairs(goal.TypeInfo.NameToType) do eventChildren[k] = valueNode end
 for root in values {
     makeNT("Analyze", { Files = listNode }, true, 
         function(t)
+            goal.FlushDefers()
             ColorPrint("36;1", "-- ANALYZING:\n")
             local files = {} ; for v in values(t.values.Files) do 
                 if type(v) == "table" then Map(Curry(append,files), v)
@@ -416,6 +443,7 @@ for root in values {
         end),
     makeNT("Event", eventChildren, true,
         function(t)
+            goal.FlushDefers()
             local event, varName = table.next(t.values) -- Find first
             return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
         end)

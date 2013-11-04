@@ -42,7 +42,9 @@ func makeTypeTable(tInfo *typeInfo, typ reflect.Type) {
 type typeInfo struct {
 	typeTables       map[reflect.Type]*typeTable
 	stringTypeTable  *typeTable
+	boolTypeTable  *typeTable
 	fieldTypeTable   *typeTable
+	intTypeTable   *typeTable
 	TypeMembers      []string
 	stringToMemberId map[string]int
 	NameToType map[string]reflect.Type
@@ -52,6 +54,7 @@ func makeTypeInfo() typeInfo {
 	// If it makes you feel any better, the following code wasn't handwritten.
 	types := []reflect.Type{
 		reflect.TypeOf(""),
+		reflect.TypeOf(1),
 		reflect.TypeOf((*ast.ArrayType)(nil)).Elem(),
 		reflect.TypeOf((*ast.AssignStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.BadDecl)(nil)).Elem(),
@@ -124,7 +127,7 @@ func makeTypeInfo() typeInfo {
 		reflect.TypeOf((*ast.Visitor)(nil)).Elem(),
 	}
 	tables := map[reflect.Type]*typeTable{}
-	tInfo := typeInfo{tables, nil, nil, []string{}, map[string]int{}, map[string]reflect.Type{}}
+	tInfo := typeInfo{tables, nil, nil, nil, nil, []string{}, map[string]int{}, map[string]reflect.Type{}}
 	members := map[string]bool{}
 	for _, typ := range types {
 		tInfo.NameToType[typ.Name()] = typ
@@ -142,6 +145,8 @@ func makeTypeInfo() typeInfo {
 	}
 	tInfo.stringTypeTable = tInfo.typeTables[reflect.TypeOf("")]
 	tInfo.fieldTypeTable = tInfo.typeTables[reflect.TypeOf((*ast.Field)(nil)).Elem()]
+	tInfo.boolTypeTable = tInfo.typeTables[reflect.TypeOf(true)]
+	tInfo.intTypeTable = tInfo.typeTables[reflect.TypeOf(1)]
 	return tInfo
 }
 
@@ -162,6 +167,13 @@ func makeGoalRef(value interface{}) goalRef {
 
 func makeStrRef(value interface{}) goalRef {
 	return goalRef{_TYPE_INFO.stringTypeTable, value}
+}
+
+func makeBoolRef(value interface{}) goalRef {
+	return goalRef{_TYPE_INFO.boolTypeTable, value}
+}
+func makeIntRef(value interface{}) goalRef {
+	return goalRef{_TYPE_INFO.intTypeTable, value}
 }
 
 func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) goalRef {
@@ -211,3 +223,4 @@ func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) go
 	typ := ref.memberTypes[memberIdx]
 	return goalRef{typ, reflect.Indirect(reflect.ValueOf(ref.Value)).FieldByIndex(idx).Interface()}
 }
+ 
