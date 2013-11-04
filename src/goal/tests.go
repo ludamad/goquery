@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/stevedonovan/luar"
 	"io/ioutil"
-	"strings"
+	"regexp"
 )
 
 func RunTests(dir string, onlyRun int) (int,int) {
@@ -14,10 +14,11 @@ func RunTests(dir string, onlyRun int) (int,int) {
 		return 1,1
 	}
 
+	failList := []string{}
 	failures, total, n := 0, 0, 0
 	for _, file := range io {
 		fname := file.Name()
-		if fname[0] != '0' || strings.Index(fname, ".lua") != len(fname)-4 || fname == "prelude.lua" {
+		if matched, err := regexp.MatchString("\\d.*\\.lua$", fname) ; !matched || err != nil {
 			continue
 		}
 		n++;
@@ -39,8 +40,16 @@ func RunTests(dir string, onlyRun int) (int,int) {
 			colorPrintf("0;1", "Test '%s' succeeded!\n", fname)
 		} else {
 			colorPrintf("31;1", "Test '%s' FAILED ... \n", fname)
+			failList = append(failList, fname)
 			failures++
 		}
+	}
+	if failures > 0 {
+		colorPrintf("31;1", "Failures: ")
+		for _, failString := range failList {
+			colorPrintf("31", "%s\t", failString)
+		}
+		fmt.Printf("\n")
 	}
 	return failures,total
 }

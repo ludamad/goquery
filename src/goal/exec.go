@@ -69,12 +69,13 @@ func (bc BytecodeExecContext) execOne() {
 		if val.Type().Kind() != reflect.Slice {
 			panic("Can only iterate over slices!")
 		}
-		if val.Len() >= idx {
+		if val.Len() <= idx {
 			bc.popN(1)
 			bc.Index = code.Bytes1to3()
+		} else {
+			bc.push(makeIntRef(idx+1))
+			bc.push(makeGoalRef(val.Index(idx).Interface()))
 		}
-		bc.push(makeIntRef(idx+1))
-		bc.push(makeGoalRef(val.Index(idx)))
 	case BC_CONCATN:
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:

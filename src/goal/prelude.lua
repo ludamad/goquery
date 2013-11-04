@@ -136,19 +136,14 @@ function ObjectRef:init(name, --[[Optional]] parent, --[[Optional]] previous)
     self.parent, self.previous = parent or false, previous or false
     self.allocSize, self.stackIndex = false, false
 end
-function ObjectRef:Lookup(key)
-    local var = self.memberMap[key] ; if not var then
-        var = ObjectRef(key, self, self.members[#self.members])
-        append(self.members, var) ; self.memberMap[key] = var
-    end ; return var
+function ObjectRef:Create(key) assert(not self.memberMap[key])
+    local var = ObjectRef(key, self, self.members[#self.members]) ; append(self.members, var) ; self.memberMap[key] = var ; return var
+end
+function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
+    local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
 end
 -- Only makes sense on root object ref, aka the stack
-function ObjectRef:Pop(n)
-    local len = #self.members
-    for i = len, len - n + 1, -1 do
-        local name = self.members[i].name ; self.members[i], self.memberMap[name] = nil, nil
-    end
-end
+function ObjectRef:Pop() local m=self.members ; local r=m[#m] ; m[#m],self.memberMap[r.name]=nil ; return r end
 function ObjectRef:ResolveIndex(--[[Optional]] resolvef)
     if self.stackIndex then return self.stackIndex end -- Already resolved, return 
     if self.previous then self.stackIndex = self.previous.ResolveIndex(resolvef) + self.previous.ResolveSize()
@@ -177,7 +172,7 @@ local NBlock -- defined in next section
 function Compiler:init(--[[Optional]] contextVar)
     self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef()
     self.constantIndex = 0 ; self.constantMap = {} ; self.nodes = NBlock()
-    if contextVar then self.ResolveObject(contextVar:split(".")) end
+    if contextVar then self.AddVariableRoot(contextVar) end
 end
 local function numToBytes(num, n)
     local bytes = {} ; for i=1,n do append(bytes, num % 256) ; num = math.floor(num / 256) end ; return unpack(bytes)
@@ -213,12 +208,14 @@ function Compiler:ResolveConstant(constant)
 end
 function Compiler:CompilePlaceholder() return self.bytes.PushBytecode(goal.Bytecode(0,0,0,0)) end -- Placeholder for jump
 function Compiler:BytesSize() return self.bytes.BytecodeSize() end -- Placeholder for jump
+function Compiler:AddVariableRoot(name) self.objects.Create(name) end
+function Compiler:PopVariableRoot(name) local popped = self.objects.Pop() ; assert(popped.name == name) end
 function Compiler:ResolveObject(parts)
-    local node = self.objects
+    local node, mustExist = self.objects, true
     if #parts == 0 then return nil end
     for part in values(parts) do
         assert(part:match("^%w+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
-        node = node.Lookup(part)
+        node = node.Lookup(part, mustExist) ; mustExist = false
     end
     return node
 end
@@ -360,8 +357,7 @@ function goal.CallableNode(labelNode, f)
 end
 function SNodes.Case(C, cases) 
     -- First pass:
-    for case in values(cases) do 
-    case[1] = goal.ExprParse(case[1])(C) ; case[2] = case[2](C) end
+    for case in values(cases) do case[1] = case[1](C) ; case[2] = case[2](C) end
     return function() -- Second pass:
         local endJumps = {} -- Collect all jumps that lead to end
         for case in values(cases) do
@@ -373,12 +369,24 @@ function SNodes.Case(C, cases)
 end
 function Case(expr)
     local cases = {} ; local addCondition, addStatements, finish
-    function addCondition(cond) append(cases, {cond}) ; return addStatements end
+    function addCondition(cond) append(cases, {goal.ExprParse(cond)}) ; return addStatements end
     function addStatements(...) 
         cases[#cases][2] = goal.CodeBlock(...) ; return goal.CallableNode(makeLabelNode("Case", {cases}), addCondition)
     end
     return addCondition(expr)
 end
+function SNodes.ForAll(C, name, loopable, body)
+    loopable = loopable(C) ; body = body(C) -- First pass 
+    return function() -- Second pass:
+        loopable(C) ; C.Compile123("BC_PUSH_NIL", 0) ; local nextHolder = C.CompilePlaceholder()
+        body(C)
+        C.Compile123("BC_NEXT", nextHolder, C.BytesSize())
+         
+    end
+end
+function ForAll(name, loopable) return function (...) 
+    return makeLabelNode("ForAll", {name, goal.ExprParse(loopable), goal.CodeBlock(...)})
+end end
 table.merge(basic, SNodes) -- SNodes is a superset
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs

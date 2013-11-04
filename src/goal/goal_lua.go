@@ -64,6 +64,7 @@ var _API luar.Map = luar.Map{
 	"BC_CONSTANT":     BC_CONSTANT,
 	"BC_PUSH":         BC_PUSH,
 	"BC_PUSH_NIL":         BC_PUSH_NIL,
+	"BC_NEXT":         BC_NEXT,
 	"BC_MEMBER_PUSH":  BC_MEMBER_PUSH,
 	"BC_SPECIAL_PUSH": BC_SPECIAL_PUSH,
 	"BC_POPN":         BC_POPN,

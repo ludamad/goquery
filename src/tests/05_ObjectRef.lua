@@ -6,10 +6,10 @@ local function make(parent, chain)
     for i,part in ipairs(chain) do
         if type(part) == "table" then
             for k, v in pairs(part) do
-                make(parent.Lookup(k), v)
+                make(parent.Create(k), v)
             end
         else
-            parent.Lookup(part)
+            parent.Create(part)
         end
     end
 end
@@ -61,7 +61,7 @@ ObjectRefTest (
 
 -- Basic compiler tests
 
-local compiler = goal.Compiler()
+local compiler = goal.Compiler("Foo")
 compiler.ResolveObject {"Foo", "Bar", "Baz"}
 local node = compiler.ResolveObject {"Foo", "Bar", "Baz2"}
 check(node, 1, 3)
