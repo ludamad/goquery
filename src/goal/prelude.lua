@@ -128,16 +128,19 @@ function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushCo
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
 --------------------------------------------------------------------------------
--- Stack allocator. Provides efficient allocation of common subobjects.
+-- Stack allocation helpers. Provide efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
+local StackAllocator = class "StackAllocator" ; goal.StackAllocator = StackAllocator
+function StackAllocator:init() self.I = 0 ; self.unresolved = {} end
+function StackAllocator:Alloc(obj, --[[Optional]] resolved) self.I = self.I + 1 ; if not resolved then append(self.unresolved, obj) end ; return self.I - 1 end
 local ObjectRef = class "ObjectRef" ; goal.ObjectRef = ObjectRef
-function ObjectRef:init(name, --[[Optional]] parent, --[[Optional]] previous)
-    self.name = name ; self.members, self.memberMap = {}, {}
+function ObjectRef:init(allocator, name, --[[Optional]] parent, --[[Optional]] previous)
+    self.allocator,self.name = allocator, name ; self.members, self.memberMap = {}, {}
     self.parent, self.previous = parent or false, previous or false
     self.allocSize, self.stackIndex = false, false
 end
 function ObjectRef:Create(key) assert(not self.memberMap[key])
-    local var = ObjectRef(key, self, self.members[#self.members]) ; append(self.members, var) ; self.memberMap[key] = var ; return var
+    local var = ObjectRef(self.allocator, key, self, self.members[#self.members]) ; append(self.members, var) ; self.memberMap[key] = var ; return var
 end
 function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
     local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
@@ -170,7 +173,7 @@ end
 local Compiler = class "Compiler" ; goal.Compiler = Compiler
 local NBlock -- defined in next section
 function Compiler:init(--[[Optional]] contextVar)
-    self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef()
+    self.allocator = StackAllocator(); self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef(self.allocator, nil)
     self.constantIndex = 0 ; self.constantMap = {} ; self.nodes = NBlock()
     if contextVar then self.AddVariableRoot(contextVar) end
 end
@@ -181,9 +184,9 @@ function Compiler:Compile123(code, arg, --[[Optional]] idx)
     local b1,b2,b3 = numToBytes(arg, 3)
     local bc = goal.Bytecode(goal[code], b1,b2,b3)
     if idx then 
-        self.bytes.SetBytecode(idx, bc)
+        self.bytes.SetBytecode(idx, bc) ; return idx
     else 
-        self.bytes.PushBytecode(bc)
+        return self.bytes.PushBytecode(bc)
     end
 end
 function Compiler:Compile12_3(code, arg1, arg2)
@@ -375,18 +378,20 @@ function Case(expr)
     end
     return addCondition(expr)
 end
-function SNodes.ForAll(C, name, loopable, body)
-    loopable = loopable(C) ; body = body(C) -- First pass 
+function SNodes.ForPairs(C, keyName, valueName, loopable, body)
+    loopable = loopable(C)
+    C.AddVariableRoot(keyName) ; C.AddVariableRoot(valueName)
+    body = body(C) -- First pass 
     return function() -- Second pass:
-        loopable(C) ; C.Compile123("BC_PUSH_NIL", 0) ; local nextHolder = C.CompilePlaceholder()
+        loopable(C) ; C.Compile123("BC_PUSH_NIL", 0) ; local loopStart = C.CompilePlaceholder()
         body(C)
-        C.Compile123("BC_NEXT", nextHolder, C.BytesSize())
-         
+        C.Compile123("BC_NEXT", C.BytesSize(), loopStart) -- Recompile 'loopStart'
+        C.Compile123("BC_JMP", loopStart) -- Jump to (now recompiled) loopStart
     end
 end
-function ForAll(name, loopable) return function (...) 
-    return makeLabelNode("ForAll", {name, goal.ExprParse(loopable), goal.CodeBlock(...)})
-end end
+function ForPairs(keyName) return function(valueName) return function(loopable) return function (...) 
+    return makeLabelNode("ForPairs", {keyName, valueName, goal.ExprParse(loopable), goal.CodeBlock(...)})
+end end end end
 table.merge(basic, SNodes) -- SNodes is a superset
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
