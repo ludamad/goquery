@@ -133,9 +133,11 @@ goal.DefineTuple = gsym.DefineTuple
 local StackAllocator = class "StackAllocator" ; goal.StackAllocator = StackAllocator
 function StackAllocator:init() self.I = 0 ; self.unresolved = {} end
 function StackAllocator:Alloc(obj, --[[Optional]] resolved) self.I = self.I + 1 ; if not resolved then append(self.unresolved, obj) end ; return self.I - 1 end
+function StackAllocator:Pop(obj) self.I = obj.stackIndex ; assert(self.I > 0) end
 local ObjectRef = class "ObjectRef" ; goal.ObjectRef = ObjectRef
 function ObjectRef:init(allocator, name, --[[Optional]] parent, --[[Optional]] previous)
     self.allocator,self.name = allocator, name ; self.members, self.memberMap = {}, {}
+    assert(type(self.name) == "string")
     self.parent, self.previous = parent or false, previous or false
     self.allocSize, self.stackIndex = false, false
 end
@@ -146,14 +148,11 @@ function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
     local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
 end
 -- Only makes sense on root object ref, aka the stack
-function ObjectRef:Pop() local m=self.members ; local r=m[#m] ; m[#m],self.memberMap[r.name]=nil ; return r end
-function ObjectRef:ResolveIndex(--[[Optional]] resolvef)
-    if self.stackIndex then return self.stackIndex end -- Already resolved, return 
-    if self.previous then self.stackIndex = self.previous.ResolveIndex(resolvef) + self.previous.ResolveSize()
-    elseif self.parent then self.stackIndex = self.parent.ResolveIndex(resolvef) + 1
-    else self.stackIndex = -1 end -- Base case, the root is a pseudo-node
-    if resolvef then resolvef(self, self.stackIndex) end
-    return self.stackIndex
+function ObjectRef:Pop() local m=self.members ; self.allocator.Pop(m);local r=m[#m] ; m[#m],self.memberMap[r.name]=nil ; return r end
+function ObjectRef:AllocateIndex() if self.stackIndex then return self.stackIndex end -- Already resolved, return
+    if self.previous then self.previous.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self)
+    elseif self.parent then self.parent.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self) 
+    else self.stackIndex = -1 end ; return self.stackIndex
 end
 -- Figure out how 'deep' we are, the elements at the end of a given stack frame start at 0
 function ObjectRef:ResolveSize()
@@ -173,7 +172,7 @@ end
 local Compiler = class "Compiler" ; goal.Compiler = Compiler
 local NBlock -- defined in next section
 function Compiler:init(--[[Optional]] contextVar)
-    self.allocator = StackAllocator(); self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef(self.allocator, nil)
+    self.allocator = StackAllocator(); self.bytes = goal.NewBytecodeContext() ; self.objects = ObjectRef(self.allocator, "")
     self.constantIndex = 0 ; self.constantMap = {} ; self.nodes = NBlock()
     if contextVar then self.AddVariableRoot(contextVar) end
 end
@@ -228,15 +227,16 @@ function Compiler:ResolveObjectRef(str)
     local parts = str:split(".")
     local obj, name = self.ResolveObject(parts), parts[#parts]
     -- First pass: Push all submembers onto stack
-    local idx = obj.ResolveIndex(function(obj, idx)
+    local idx = obj.AllocateIndex()
+    for obj in values(self.allocator.unresolved) do
         local parts = str:split(".")
         local obj, name = self.ResolveObject(parts), parts[#parts]
         local isSpecial = name:match("^%l")
         local ref ; if isSpecial then ref = goal["SMEMBER_".. name] else ref = varIds[name] end  
         if idx > 0 then
-            self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.ResolveIndex(), ref)
-        end end
-    )
+            self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.AllocateIndex(), ref)
+        end
+    end ; self.allocator.unresolved = {}
     return function() self.Compile123("BC_PUSH", idx) end
 end
 

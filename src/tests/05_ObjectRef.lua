@@ -29,14 +29,14 @@ function check(node, sizes, indices)
     if type(indices) == "number" then indices = {indices} end
 
     test("Size %s does not resolve to %s!", node.ResolveSize(), sizes[1])
-    test("Index %s does not resolve to %s!", node.ResolveIndex(), indices[1])
+    test("Index %s does not resolve to %s!", node.AllocateIndex(), indices[1])
     if sizes[2] then
         check_refs(node.members, sizes[2], indices[2])
     end
 end
 
 local function ObjectRefTest(chain, sizes, indices)
-    local root = goal.ObjectRef("")
+    local root = goal.ObjectRef(goal.StackAllocator(), "")
     make(root, chain)
     check_refs(root.members, sizes, indices)
 end
