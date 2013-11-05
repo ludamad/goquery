@@ -18,16 +18,18 @@ function macros.CaseType(value)
     return conditionWrap(Case)
 end
 
--- Right to the point if you want a type switch, usually 
-function macros.EventCaseType(ev, val)
-    local innerCase = macros.CaseType(val)
+local function EventCaseWrap(casef) return function(ev, --[[Optional]] val)
+    local innerCase = val and casef(val) or casef
     goal.Defer(
         function() Event(ev)(innerCase)
     end)
     local function chainCall(...) innerCase = innerCase(...) ; return chainCall end ; return chainCall
-end
+end end
+macros.EventCase = EventCaseWrap(Case)
+-- Right to the point if you want a type switch, usually 
+macros.EventCaseType = EventCaseWrap(macros.CaseType)
 
-function macros.ForAll(value) return ForPairs("_")(value) end
+function macros.ForAll(value) return ForPairs("")(value) end
 
 -- Expose to global context:
 for k, v in pairs(macros) do _G[k] = v end

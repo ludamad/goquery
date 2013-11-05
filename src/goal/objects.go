@@ -208,7 +208,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 	if memberIdx == SMEMBER_location {
 		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
 	}
-	panic("resolveStringMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())
+	panic("resolveSpecialMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())
 }
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) goalRef {

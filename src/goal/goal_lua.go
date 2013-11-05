@@ -89,6 +89,7 @@ var _API luar.Map = luar.Map{
 	"BIN_OP_AND":       BIN_OP_AND,
 	"BIN_OP_OR":        BIN_OP_OR,
 	"BIN_OP_XOR":       BIN_OP_XOR,
+	"BIN_OP_INDEX":     BIN_OP_INDEX,
 	"BIN_OP_TYPECHECK": BIN_OP_TYPECHECK,
 
 	"UNARY_OP_NOT": UNARY_OP_NOT,

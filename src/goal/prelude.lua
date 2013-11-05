@@ -126,6 +126,8 @@ function goal.SetEvent(type, ev) prettyBytecode(ev) ; events.Events[goal.TypeInf
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
+goal.SchemaFromName = gsym.SchemaFromName
+goal.PrintStore = gsym.PrintStore
 --------------------------------------------------------------------------------
 -- Stack allocation helpers. Provide efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
@@ -146,7 +148,9 @@ function ObjectRef:QueueForAlloc() if self.queued then return end
     if self.parent then self.allocator.Enqueue(self) ; self.queued = true end 
 end
 function ObjectRef:Create(key) assert(not self.memberMap[key])
-    local var = ObjectRef(self.allocator, key, self, self.members[#self.members]) ; append(self.members, var) ; self.memberMap[key] = var ; return var
+    local var = ObjectRef(self.allocator, key, self, self.members[#self.members]) ; append(self.members, var) ; 
+    if key ~= "" then assert(not self.memberMap[key], ("Variable '%s' already exists!"):format(key)) end 
+    self.memberMap[key] = var ; return var
 end
 function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
     local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
@@ -398,6 +402,17 @@ function Case(expr)
     end
     return addCondition(expr)
 end
+function SNodes.Store(C, schemaName, values)
+    local nextPass = resolvePass(C, values)
+    return function() local schema = goal.SchemaFromName(schemaName)
+        assert(#values == schema.FieldLength(), "Wrong argument number to Store!")
+        resolvePass(C, nextPass, true)
+        C.Compile12_3("BC_SAVE_TUPLE", schema.Id, schema.FieldLength())
+    end
+end
+function Store(schemaName) return function(...)
+    return simpleNode("Store", schemaName, goal.ExpressionsParse(...))
+end end
 function SNodes.ForPairs(C, keyName, valueName, loopable, body)
     loopable = loopable(C)
     local keyRoot, valRoot = C.AddVariableRoot(keyName), C.AddVariableRoot(valueName)
@@ -488,6 +503,16 @@ for root in values {
             return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
         end)
 } do _G[root.label] = root end
+-- Data definition
+function Key(str) return simpleNode("Key", str) end
+function Data(name) return function(...)
+    local fields,keys = {},{}
+    for v in values(pack(...)) do
+        if type(v) == "string" then append(fields, v) else append(fields, v.values[1]) ; append(keys, v.values[1]) end
+    end
+    goal.DefineTuple(name, fields, keys)
+end end
+
 -- Various constants
 local function constantN(val) return simpleNode("constant", val) end
 function FindFiles(dir)

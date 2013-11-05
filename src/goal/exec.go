@@ -37,6 +37,7 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 		case BIN_OP_OR: if isTrueValue(val1.Value) { return val1 } else {return val2 }
 		case BIN_OP_XOR: if isTrueValue(val1.Value) != isTrueValue(val2.Value) { return makeBoolRef(true) } else {makeBoolRef(false) }
 		case BIN_OP_TYPECHECK: if resolveType(val2.Value) == val1.Value.(reflect.Type) { return makeBoolRef(true) } else {return makeBoolRef(false) }
+		case BIN_OP_INDEX: return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
 	}
 	panic("Unexpected bin op")
 }

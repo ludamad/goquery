@@ -2,10 +2,13 @@ package goal
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 )
 
 type TupleSchema struct {
+	Id         int
+	Name       string
 	Fields     []string
 	Keys       []string
 	KeyIndices []int
@@ -30,6 +33,8 @@ func (schema *TupleSchema) keyStringFromKeys(keys []string) string {
 	return buf.String()
 }
 
+func (schema *TupleSchema) FieldLength() int { return len(schema.Fields) }
+func (schema *TupleSchema) KeyLength() int   { return len(schema.Keys) }
 func (schema *TupleSchema) SaveTuple(tuple []string) {
 	schema.Store[schema.keyStringFromTuple(tuple)] = tuple
 }
@@ -49,12 +54,12 @@ func indexOf(strs []string, test string) int {
 	return 0
 }
 
-func MakeSchema(fields, keys []string) TupleSchema {
+func makeSchema(id int, name string, fields, keys []string) TupleSchema {
 	keyIndices := []int{}
 	for _, key := range keys {
 		keyIndices = append(keyIndices, indexOf(fields, key))
 	}
-	return TupleSchema{fields, keys, keyIndices, map[string][]string{}}
+	return TupleSchema{id, name, fields, keys, keyIndices, map[string][]string{}}
 }
 
 type TupleStore struct {
@@ -65,8 +70,8 @@ func MakeMemoryStore(schemas []TupleSchema) *TupleStore {
 	return &TupleStore{schemas}
 }
 
-func (s *TupleStore) DefineTuple(fields, keys []string) int {
-	s.Schemas = append(s.Schemas, MakeSchema(fields, keys))
+func (s *TupleStore) DefineTuple(name string, fields, keys []string) int {
+	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys))
 	return len(s.Schemas) - 1
 }
 
@@ -74,7 +79,25 @@ func (s *TupleStore) SaveTuple(tupleKind int, tuple []string) {
 	s.Schemas[tupleKind].SaveTuple(tuple)
 }
 
+func (s *TupleStore) SchemaFromName(name string) *TupleSchema {
+	for _, schema := range s.Schemas {
+		if schema.Name == name {
+			return &schema
+		}
+	}
+	panic("No schema by name " + name + "!")
+}
+
 func (s *TupleStore) LoadTuple(tupleKind int, keys []string) []string {
 	t := s.Schemas[tupleKind].LoadTuple(keys)
 	return t
+}
+
+func (s *TupleStore) PrintStore() {
+	for _, schema := range s.Schemas {
+		fmt.Printf("Schema %s:\n", schema.Name)
+		for k, v := range schema.Store {
+			fmt.Printf("%s => %s\n", k, v)
+		}
+	}
 }

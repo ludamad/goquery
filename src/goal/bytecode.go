@@ -45,7 +45,12 @@ func (bc *BytecodeContext) concatStrings(num int) {
 }
 
 func (bc *BytecodeContext) PushConstant(constant interface{}) {
-	bc.Constants = append(bc.Constants, makeGoalRef(constant))
+	float, ok := constant.(float64)
+	if ok {
+		bc.Constants = append(bc.Constants, makeGoalRef(int(float)))
+	} else {
+		bc.Constants = append(bc.Constants, makeGoalRef(constant))
+	}
 }
 
 func (bc *BytecodeContext) PushBytecode(code Bytecode) int {
