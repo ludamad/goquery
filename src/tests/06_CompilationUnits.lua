@@ -11,7 +11,7 @@ end
 Test(
     "FD",
     Printf("FuncDecl: Found %s '%s' at '%s'\n", 
-        Var "FD.type", Var "FD.name", Var "FD.location"
+        var "FD.type", var "FD.name", var "FD.location"
     )
 )
 

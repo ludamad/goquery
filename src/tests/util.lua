@@ -91,8 +91,7 @@ end
 local function prettyPrintAst(ast, indent)
     io.write(indent .. ') ')
     for i=1,indent do io.write(". ") end
-    if type(ast) == "table" and ast.label then
-        print(ast.label)
+    if type(ast) == "table" and rawget(ast, "label") then
         if type(ast.values) == "table" then
             for i=1,#ast.values do
                 prettyPrintAst(ast.values[i], indent + 1)
@@ -104,6 +103,11 @@ function prettyAst(...)
     for i in values{...} do prettyPrintAst(i, 1) end
 end
 
+local smap = {}
+for k,v in pairs(goal) do
+    if k:find("SMEMBER_") == 1 then smap[v] = k:sub(#"SMEMBER_" + 1) end
+end
+
 function prettyBytecode(bc)
     for i, code in ipairs(bc.Bytecodes) do 
         io.write(i .. ') ')
@@ -111,11 +115,15 @@ function prettyBytecode(bc)
         if v == goal.BC_CONSTANT then
             print("Constant Push \"" .. tostring(bc.Constants[code.Bytes1to3()+1].Value):gsub("\n", "\\n") .. "\"")
         elseif v == goal.BC_SPECIAL_PUSH then
-            print("Special Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
+            print("Special Push '" .. smap[code.Val3] .. "' of ".. code.Bytes1to2())
         elseif v == goal.BC_PUSH then
             print("Stack Push I:" .. code.Bytes1to3())
+        elseif v == goal.BC_PUSH_NIL then
+            print("Nil Push")
+        elseif v == goal.BC_NEXT then
+            print("NEXT " .. code.Bytes1to3())
         elseif v == goal.BC_MEMBER_PUSH then
-            print("Member Push O:" .. code.Bytes1to2() .. " M:" .. code.Val3)
+            print("Member Push '" .. goal.TypeInfo.TypeMembers[code.Val3+1] .. "' of " .. code.Bytes1to2())
         elseif v == goal.BC_POPN then
             print("Pop :" .. code.Bytes1to3())
         elseif v == goal.BC_CONCATN then

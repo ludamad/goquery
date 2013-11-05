@@ -37,8 +37,7 @@ local function do_nothing() end
 local function pack(...)
     local t = {}
     for i=1,select("#", ...) do
-        local val = assert(select(i, ...), "Found nil value at ".. i)
-        append(t, val)
+        local val = select(i, ...) ; assert(val ~= nil, "Found nil value at ".. i) ; append(t, val)
     end
     return t
 end
@@ -132,8 +131,9 @@ goal.DefineTuple = gsym.DefineTuple
 --------------------------------------------------------------------------------
 local StackAllocator = class "StackAllocator" ; goal.StackAllocator = StackAllocator
 function StackAllocator:init() self.I = 0 ; self.unresolved = {} end
-function StackAllocator:Alloc(obj, --[[Optional]] resolved) self.I = self.I + 1 ; if not resolved then append(self.unresolved, obj) end ; return self.I - 1 end
-function StackAllocator:Pop(obj) self.I = obj.stackIndex ; assert(self.I > 0) end
+function StackAllocator:Increment() self.I = self.I + 1 ; return self.I - 1 end
+function StackAllocator:Alloc(obj, --[[Optional]] resolved) if not resolved then append(self.unresolved, obj) end ; return self.Increment() end
+function StackAllocator:Readjust(objTree) local m = objTree.members ; if m[#m] then self.I = m[#m].stackIndex + m[#m].ResolveSize() else self.I = 0 end end
 local ObjectRef = class "ObjectRef" ; goal.ObjectRef = ObjectRef
 function ObjectRef:init(allocator, name, --[[Optional]] parent, --[[Optional]] previous)
     self.allocator,self.name = allocator, name ; self.members, self.memberMap = {}, {}
@@ -147,8 +147,6 @@ end
 function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
     local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
 end
--- Only makes sense on root object ref, aka the stack
-function ObjectRef:Pop() local m=self.members ; self.allocator.Pop(m);local r=m[#m] ; m[#m],self.memberMap[r.name]=nil ; return r end
 function ObjectRef:AllocateIndex() if self.stackIndex then return self.stackIndex end -- Already resolved, return
     if self.previous then self.previous.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self)
     elseif self.parent then self.parent.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self) 
@@ -161,6 +159,7 @@ function ObjectRef:ResolveSize()
         self.allocSize = self.allocSize + m.ResolveSize()
     end ; return self.allocSize
 end
+function ObjectRef:RootName() return (self.parent.name=="") and self.name or self.parent.RootName() end
 function ObjectRef:__tostring()
     return ("(ObjectRef name=%s parent=%s previous=%s allocSize=%s stackIndex=%s)"):format(
         self.name, tostring(self.parent), tostring(self.previous), tostring(self.allocSize), tostring(self.stackIndex)
@@ -188,12 +187,29 @@ function Compiler:Compile123(code, arg, --[[Optional]] idx)
         return self.bytes.PushBytecode(bc)
     end
 end
+Compiler.Recompile123 = Compiler.Compile123 -- Self-documenting alias 
 function Compiler:Compile12_3(code, arg1, arg2)
     local b1,b2 = numToBytes(arg1, 2)
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
+
+local varIds = {}
+for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i-1 end
+local function compileObjPushes(C, objs)
+    for obj in values(objs) do if obj.RootName() ~= obj.name then
+        local isSpecial, idx = obj.name:match("^%l"), obj.AllocateIndex()
+        local ref = isSpecial and goal["SMEMBER_".. obj.name] or varIds[obj.name]  
+        C.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.AllocateIndex(), ref)
+    end end ; return #objs
+end
+
  -- Compilation occurs in two passes, the first pass returns a function that performs the second pass
-function Compiler:CompileAll() pretty(unpack(self.nodes.block)) ;  self.nodes(self)(self) end
+function Compiler:CompileAll() 
+    local nextPass = self.nodes(self)
+    local N = compileObjPushes(self, self.PopVariableRoots(1))
+    nextPass(self)
+    if N > 1 then self.Compile123("BC_POPN", N - 1) end
+end
 function Compiler:AddNodes(nodes) self.nodes.AddAll(nodes) end
 function Compiler:CompileConstant(constant)
     assert(type(constant) ~= "table") ; self.Compile123("BC_CONSTANT", self.ResolveConstant(constant))
@@ -210,8 +226,18 @@ function Compiler:ResolveConstant(constant)
 end
 function Compiler:CompilePlaceholder() return self.bytes.PushBytecode(goal.Bytecode(0,0,0,0)) end -- Placeholder for jump
 function Compiler:BytesSize() return self.bytes.BytecodeSize() end -- Placeholder for jump
-function Compiler:AddVariableRoot(name) self.objects.Create(name) end
-function Compiler:PopVariableRoot(name) local popped = self.objects.Pop() ; assert(popped.name == name) end
+function Compiler:AddVariableRoot(name) return self.objects.Create(name) end
+function Compiler:PopVariableRoots(N)
+    local O,toBeResolved,stillUnresolved,names=self.objects,{},{},{}
+    for i=1,N do
+        local m,M=O.members,O.memberMap ; local r=m[#m] ; m[#m]=nil ; M[r.name]=nil
+        append(names,r.name)
+    end ; self.allocator.Readjust(self.objects)
+    for obj in values(self.allocator.unresolved) do 
+        append((table.index_of(names, obj.RootName()) ~= nil) and toBeResolved or stillUnresolved, obj)
+    end
+    self.allocator.unresolved = stillUnresolved ; return toBeResolved
+end
 function Compiler:ResolveObject(parts)
     local node, mustExist = self.objects, true
     if #parts == 0 then return nil end
@@ -221,22 +247,11 @@ function Compiler:ResolveObject(parts)
     end
     return node
 end
-local varIds = {}
-for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i - 1 end
 function Compiler:ResolveObjectRef(str)
     local parts = str:split(".")
     local obj, name = self.ResolveObject(parts), parts[#parts]
     -- First pass: Push all submembers onto stack
     local idx = obj.AllocateIndex()
-    for obj in values(self.allocator.unresolved) do
-        local parts = str:split(".")
-        local obj, name = self.ResolveObject(parts), parts[#parts]
-        local isSpecial = name:match("^%l")
-        local ref ; if isSpecial then ref = goal["SMEMBER_".. name] else ref = varIds[name] end  
-        if idx > 0 then
-            self.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.AllocateIndex(), ref)
-        end
-    end ; self.allocator.unresolved = {}
     return function() self.Compile123("BC_PUSH", idx) end
 end
 
@@ -300,7 +315,7 @@ end
 function NodeTransformer:AllLabelValues(--[[Optional]] t)
     t = t or {} ; for c in values(self.childWalkers or {}) do append(t, c.label) ; c.AllLabelValues(t) end ; return values(t)
 end
-function NodeTransformer:__call(...) return self.Apply(simpleNode(self.label, ...)) end
+function NodeTransformer:__call(...) pretty(...); return self.Apply(simpleNode(self.label, ...)) end
 --------------------------------------------------------------------------------
 -- Goal API and Program AST components. 
 -- The AST components emit code, and are created from the 
@@ -343,7 +358,7 @@ end end
 function goal.CodeParse(...) return Map(Curry(nodeTransform, SNodes), pack(...)) end
 function goal.CodeBlock(...) prettyAst(...) ; return NBlock(goal.CodeParse(...)) end
 -- Create an AST node from a label-node using SNodes:
-function goal.ExprParse(node) return type(node) == "function" and node or nodeTransform(ENodes, node) end
+function goal.ExprParse(node) return nodeTransform(ENodes, node) end
 function goal.ExpressionsParse(...) return Map(goal.ExprParse, pack(...)) end
 -- Program AST basic statements:
 local basic = {} ; goal.BasicSNodes = basic -- Basic statements
@@ -366,7 +381,7 @@ function SNodes.Case(C, cases)
         for case in values(cases) do
             case[1]() ; local condCheck = C.CompilePlaceholder() -- Condition
             case[2]() ; append(endJumps, C.CompilePlaceholder()) -- Block
-            C.Compile123("BC_JMP_FALSE", --[[End]] C.BytesSize(), condCheck)
+            C.Recompile123("BC_JMP_FALSE", --[[End]] C.BytesSize(), condCheck)
         end ; for jumpIdx in values(endJumps) do C.Compile123("BC_JMP", --[[End]] C.BytesSize(), jumpIdx) end
     end
 end
@@ -380,13 +395,20 @@ function Case(expr)
 end
 function SNodes.ForPairs(C, keyName, valueName, loopable, body)
     loopable = loopable(C)
-    C.AddVariableRoot(keyName) ; C.AddVariableRoot(valueName)
+    local keyRoot, valRoot = C.AddVariableRoot(keyName), C.AddVariableRoot(valueName)
+    C.allocator.Increment() -- Bump indices to account for loopable
+    keyRoot.AllocateIndex() ; valRoot.AllocateIndex()
     body = body(C) -- First pass 
+    local objs = C.PopVariableRoots(2)
     return function() -- Second pass:
-        loopable(C) ; C.Compile123("BC_PUSH_NIL", 0) ; local loopStart = C.CompilePlaceholder()
+        loopable(C)
+        C.Compile123("BC_PUSH_NIL", 0) ; local nextIdx = C.CompilePlaceholder()
+        local N = compileObjPushes(C, objs)
         body(C)
-        C.Compile123("BC_NEXT", C.BytesSize(), loopStart) -- Recompile 'loopStart'
-        C.Compile123("BC_JMP", loopStart) -- Jump to (now recompiled) loopStart
+        C.Compile123("BC_POPN", N - 1) -- Pop context variables, and the newly pushed value
+        C.Compile123("BC_JMP", nextIdx) 
+        C.Recompile123("BC_NEXT", C.BytesSize(), nextIdx)
+
     end
 end
 function ForPairs(keyName) return function(valueName) return function(loopable) return function (...) 
@@ -396,9 +418,11 @@ table.merge(basic, SNodes) -- SNodes is a superset
 -- Program AST basic expressions:
 local exprs = {} ; goal.BasicENodes = exprs
 function exprs.TypeCheck(C, typeExpr, objExpr)
-    local type = goal.TypeInfo.NameToType[typeExpr("").label] ; objExpr = objExpr(C)
+    local type = goal.TypeInfo.NameToType[typeExpr("").label] ; objExpr = goal.ExprParse(objExpr)(C)
     return function() C.CompileConstant(type) ; objExpr(C) ; C.Compile123("BC_BIN_OP", goal.BIN_OP_TYPECHECK) end
 end
+function exprs.var(C, repr) return C.ResolveObjectRef(repr) end
+function exprs.constant(C, val) return function() C.CompileConstant(val) end end
 local function binOp(op) return function(C, val1, val2)
     val1 = val1(C) ; val2 = val2(C);
     return function(C) val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
@@ -406,17 +430,14 @@ end end
 for k,v in pairs { 
     And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR,
 } do exprs[k] = binOp(v) end
-function Var(var)
-    return function(C) return C.ResolveObjectRef(var) end
-end
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
 local VarBuilder = class "VarBuilder"
 function VarBuilder:init(repr) self.repr = repr end
 function VarBuilder:__index(k) return VarBuilder(self.repr .. '.' .. k) end
 function VarBuilder:__call(k)
-    if type(k) == "string" then return Var(k .. "." .. self.repr) end
-    return Var(self.repr .. k.repr)
+    k = (type(k) == "string") and k or k.repr ; local repr = k .. "." .. self.repr
+    local varNode = simpleNode("var", repr) ; varNode.repr = repr ; return varNode
 end
 for k,v in pairs(goal) do -- Find all 'special' member names
     if k:find("SMEMBER_") == 1 then k = k:sub(#"SMEMBER_" + 1) ; _G[k] = VarBuilder(k) end
@@ -462,11 +483,7 @@ for root in values {
         end)
 } do _G[root.label] = root end
 -- Various constants
-local function constantN(val) 
-    return function(C) 
-        return function() C.CompileConstant(true) end 
-    end 
-end
+local function constantN(val) return simpleNode("constant", val) end
 function FindFiles(dir)
     local args = {}
     local files = goal.FindGoFiles(dir)

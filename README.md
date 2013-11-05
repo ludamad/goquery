@@ -40,6 +40,7 @@ The flexibility in syntax makes object expressions easily composable (See **Comp
 
 Additional operators:
 
++ var: Access a variable, eg var "f" accesses "f". (var "f.receiver") is equivalent to (receiver "f")
 + **Eval** Evaluate to the first expression whose conditions are met.  
     *General form*: **Eval** (Conditions to meet **1**) (expression-node **1**) **...** (**Otherwise**) (expression-node **N**) 
 + **SQLQuery** Returns an SQL query as a loopable object. See **ForAll**.
