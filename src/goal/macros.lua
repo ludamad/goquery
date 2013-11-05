@@ -27,5 +27,7 @@ function macros.EventCaseType(ev, val)
     local function chainCall(...) innerCase = innerCase(...) ; return chainCall end ; return chainCall
 end
 
+function macros.ForAll(value) return ForPairs("_")(value) end
+
 -- Expose to global context:
 for k, v in pairs(macros) do _G[k] = v end

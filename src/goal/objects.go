@@ -4,9 +4,11 @@ import (
 	"go/ast"
 	"reflect"
 	"strconv"
+	"fmt"
 )
 
 type typeTable struct {
+	name string
 	memberTypes   []*typeTable
 	memberIndices [][]int
 }
@@ -78,7 +80,6 @@ func makeTypeInfo() typeInfo {
 		reflect.TypeOf((*ast.DeferStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.Ellipsis)(nil)).Elem(),
 		reflect.TypeOf((*ast.EmptyStmt)(nil)).Elem(),
-		reflect.TypeOf((*ast.Expr)(nil)).Elem(),
 		reflect.TypeOf((*ast.ExprStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.Field)(nil)).Elem(),
 		reflect.TypeOf((*ast.FieldFilter)(nil)).Elem(),
@@ -102,7 +103,6 @@ func makeTypeInfo() typeInfo {
 		reflect.TypeOf((*ast.LabeledStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.MapType)(nil)).Elem(),
 		reflect.TypeOf((*ast.MergeMode)(nil)).Elem(),
-		reflect.TypeOf((*ast.Node)(nil)).Elem(),
 		reflect.TypeOf((*ast.ObjKind)(nil)).Elem(),
 		reflect.TypeOf((*ast.Object)(nil)).Elem(),
 		reflect.TypeOf((*ast.Package)(nil)).Elem(),
@@ -114,9 +114,7 @@ func makeTypeInfo() typeInfo {
 		reflect.TypeOf((*ast.SelectorExpr)(nil)).Elem(),
 		reflect.TypeOf((*ast.SendStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.SliceExpr)(nil)).Elem(),
-		reflect.TypeOf((*ast.Spec)(nil)).Elem(),
 		reflect.TypeOf((*ast.StarExpr)(nil)).Elem(),
-		reflect.TypeOf((*ast.Stmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.StructType)(nil)).Elem(),
 		reflect.TypeOf((*ast.SwitchStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.TypeAssertExpr)(nil)).Elem(),
@@ -124,7 +122,6 @@ func makeTypeInfo() typeInfo {
 		reflect.TypeOf((*ast.TypeSwitchStmt)(nil)).Elem(),
 		reflect.TypeOf((*ast.UnaryExpr)(nil)).Elem(),
 		reflect.TypeOf((*ast.ValueSpec)(nil)).Elem(),
-		reflect.TypeOf((*ast.Visitor)(nil)).Elem(),
 	}
 	tables := map[reflect.Type]*typeTable{}
 	tInfo := typeInfo{tables, nil, nil, nil, nil, []string{}, map[string]int{}, map[string]reflect.Type{}}
@@ -138,7 +135,7 @@ func makeTypeInfo() typeInfo {
 		tInfo.TypeMembers = append(tInfo.TypeMembers, member)
 	}
 	for _, typ := range types {
-		tables[typ] = &typeTable{[]*typeTable{}, [][]int{}}
+		tables[typ] = &typeTable{typ.Name(), []*typeTable{}, [][]int{}}
 	}
 	for _, typ := range types {
 		makeTypeTable(&tInfo, typ)
@@ -211,13 +208,17 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 	if memberIdx == SMEMBER_location {
 		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
 	}
-	panic("resolveStringMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n).String())
+	panic("resolveStringMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())
 }
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) goalRef {
 	ref := bc.Stack[objIdx]
 	if ref.Value != nil && ref.typeTable == nil {
-		ref.typeTable = _TYPE_INFO.typeTables[reflect.TypeOf(ref.Value).Elem()]
+		ref.typeTable = _TYPE_INFO.typeTables[resolveType(ref.Value)]
+	}
+	if len(ref.memberIndices) == 0 {
+		fmt.Printf("%s\n", ref.typeTable.name)
+		return makeStrRef(nil)
 	}
 	idx := ref.memberIndices[memberIdx]
 	typ := ref.memberTypes[memberIdx]

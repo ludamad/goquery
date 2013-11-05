@@ -41,6 +41,15 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 	panic("Unexpected bin op")
 }
 
+func dumpStack(refs []goalRef) {
+	for i,ref := range refs {
+		if ref.Value == nil {
+		fmt.Printf("\t%d) nil\n", i) } else {
+		fmt.Printf("\t%d) %s\n", i, resolveType(ref.Value).Name())
+		}
+	}
+}
+
 func (bc BytecodeExecContext) execOne() {
 	code := bc.Bytecodes[bc.Index]
 	bc.Index++
@@ -111,6 +120,9 @@ func (bc BytecodeExecContext) execOne() {
 	default:
 		panic("Bad bytes!")
 	}
+	
+//	fmt.Printf("After %d\n", bc.Index)
+//	dumpStack(bc.Stack)
 }
 
 func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objects []interface{}) {

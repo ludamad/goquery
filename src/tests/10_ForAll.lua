@@ -20,9 +20,8 @@ end
 EventCaseType (
     TypeSpec "n", Type "n"
 ) (InterfaceType) (
-    Printf("Hello world %s!\n", Methods(Type "n"))
---    ForPairs "i" "m" (Type.Methods "n") (
---        Printf("Hello world!")
---    )
+    ForAll "m" (Type.Methods.List "n") (
+        Printf("Interface %s needs method %s\n", name "n", type "m")
+    )
 )
 Analyze(Files "src/tests/interface.go")

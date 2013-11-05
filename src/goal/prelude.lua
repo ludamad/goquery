@@ -132,14 +132,18 @@ goal.DefineTuple = gsym.DefineTuple
 local StackAllocator = class "StackAllocator" ; goal.StackAllocator = StackAllocator
 function StackAllocator:init() self.I = 0 ; self.unresolved = {} end
 function StackAllocator:Increment() self.I = self.I + 1 ; return self.I - 1 end
-function StackAllocator:Alloc(obj, --[[Optional]] resolved) if not resolved then append(self.unresolved, obj) end ; return self.Increment() end
-function StackAllocator:Readjust(objTree) local m = objTree.members ; if m[#m] then self.I = m[#m].stackIndex + m[#m].ResolveSize() else self.I = 0 end end
+function StackAllocator:Enqueue(obj) append(self.unresolved, obj) end
+function StackAllocator:Reset(I) self.I = I or 0 end
 local ObjectRef = class "ObjectRef" ; goal.ObjectRef = ObjectRef
 function ObjectRef:init(allocator, name, --[[Optional]] parent, --[[Optional]] previous)
     self.allocator,self.name = allocator, name ; self.members, self.memberMap = {}, {}
     assert(type(self.name) == "string")
     self.parent, self.previous = parent or false, previous or false
-    self.allocSize, self.stackIndex = false, false
+    self.queued, self.allocSize, self.stackIndex = false, false, false
+end
+function ObjectRef:QueueForAlloc() if self.queued then return end
+    if self.previous then self.previous.QueueForAlloc() elseif self.parent then self.parent.QueueForAlloc() end
+    if self.parent then self.allocator.Enqueue(self) ; self.queued = true end 
 end
 function ObjectRef:Create(key) assert(not self.memberMap[key])
     local var = ObjectRef(self.allocator, key, self, self.members[#self.members]) ; append(self.members, var) ; self.memberMap[key] = var ; return var
@@ -148,9 +152,9 @@ function ObjectRef:Lookup(key, --[[Optiona]] dontCreate)
     local m = self.memberMap[key]; if m then return m end ; if dontCreate then assert(false,key) end return self.Create(key)
 end
 function ObjectRef:AllocateIndex() if self.stackIndex then return self.stackIndex end -- Already resolved, return
-    if self.previous then self.previous.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self)
-    elseif self.parent then self.parent.AllocateIndex() ; self.stackIndex = self.allocator.Alloc(self) 
-    else self.stackIndex = -1 end ; return self.stackIndex
+    if self.previous then self.previous.AllocateIndex() ; self.stackIndex = self.allocator.Increment(self)
+    elseif self.parent then self.parent.AllocateIndex() ; self.stackIndex = self.allocator.Increment(self) 
+    else self.stackIndex = -1 end ; print("Resolving ", self.name, "as", self.stackIndex) return self.stackIndex
 end
 -- Figure out how 'deep' we are, the elements at the end of a given stack frame start at 0
 function ObjectRef:ResolveSize()
@@ -198,6 +202,7 @@ for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i-1
 local function compileObjPushes(C, objs)
     for obj in values(objs) do if obj.RootName() ~= obj.name then
         local isSpecial, idx = obj.name:match("^%l"), obj.AllocateIndex()
+        print(obj.name, "Got ", idx)
         local ref = isSpecial and goal["SMEMBER_".. obj.name] or varIds[obj.name]  
         C.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.AllocateIndex(), ref)
     end end ; return #objs
@@ -232,7 +237,7 @@ function Compiler:PopVariableRoots(N)
     for i=1,N do
         local m,M=O.members,O.memberMap ; local r=m[#m] ; m[#m]=nil ; M[r.name]=nil
         append(names,r.name)
-    end ; self.allocator.Readjust(self.objects)
+    end 
     for obj in values(self.allocator.unresolved) do 
         append((table.index_of(names, obj.RootName()) ~= nil) and toBeResolved or stillUnresolved, obj)
     end
@@ -251,8 +256,8 @@ function Compiler:ResolveObjectRef(str)
     local parts = str:split(".")
     local obj, name = self.ResolveObject(parts), parts[#parts]
     -- First pass: Push all submembers onto stack
-    local idx = obj.AllocateIndex()
-    return function() self.Compile123("BC_PUSH", idx) end
+    obj.QueueForAlloc()
+    return function() self.Compile123("BC_PUSH", obj.AllocateIndex()) end
 end
 
 function goal.Compile(nodes, --[[Optional]] varname)
@@ -396,19 +401,20 @@ end
 function SNodes.ForPairs(C, keyName, valueName, loopable, body)
     loopable = loopable(C)
     local keyRoot, valRoot = C.AddVariableRoot(keyName), C.AddVariableRoot(valueName)
-    C.allocator.Increment() -- Bump indices to account for loopable
-    keyRoot.AllocateIndex() ; valRoot.AllocateIndex()
     body = body(C) -- First pass 
     local objs = C.PopVariableRoots(2)
     return function() -- Second pass:
         loopable(C)
+        local preI = C.allocator.I
+        C.allocator.Increment() -- Bump indices to account for loopable
+        keyRoot.AllocateIndex() ; valRoot.AllocateIndex()
         C.Compile123("BC_PUSH_NIL", 0) ; local nextIdx = C.CompilePlaceholder()
         local N = compileObjPushes(C, objs)
         body(C)
         C.Compile123("BC_POPN", N - 1) -- Pop context variables, and the newly pushed value
         C.Compile123("BC_JMP", nextIdx) 
         C.Recompile123("BC_NEXT", C.BytesSize(), nextIdx)
-
+        C.allocator.Reset(preI)
     end
 end
 function ForPairs(keyName) return function(valueName) return function(loopable) return function (...) 
