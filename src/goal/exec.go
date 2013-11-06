@@ -90,17 +90,17 @@ func (bc BytecodeExecContext) execOne() {
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
 		n := int(code.Val3)
-		bc.SaveTuple(code.Bytes1to2(), bc.copyStrings(n))
+		bc.SaveTuple(bc.DB, code.Bytes1to2(), bc.copyStackObjects(n))
 		bc.popN(n)
-	case BC_LOAD_TUPLE:
-		n := int(code.Val3)
-		tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
-		bc.popN(n)
-		if len(tuple) == 0 {
-			bc.push(makeStrRef(nil))
-		} else {
-			bc.push(makeStrRef(tuple))
-		}
+//	case BC_LOAD_TUPLE:
+//		n := int(code.Val3)
+//		tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
+//		bc.popN(n)
+//		if len(tuple) == 0 {
+//			bc.push(makeStrRef(nil))
+//		} else {
+//			bc.push(makeStrRef(tuple))
+//		}
 	case BC_JMP_FALSE:
 		if isTrueValue(bc.peek(1).Value) {
 			bc.Index = code.Bytes1to3()

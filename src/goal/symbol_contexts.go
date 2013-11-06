@@ -6,10 +6,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"database/sql"
 )
 
 type GlobalSymbolContext struct {
 	*TupleStore
+	DB *sql.DB
 	FileSet       *token.FileSet
 	Events *EventContext
 	NameToAstFile map[string]*ast.File
@@ -17,7 +19,7 @@ type GlobalSymbolContext struct {
 }
 
 func NewGlobalContext() *GlobalSymbolContext {
-	return &GlobalSymbolContext{MakeMemoryStore([]TupleSchema{}), token.NewFileSet(), NewEventContext(), map[string]*ast.File{}, map[ast.Expr]types.Type{}}
+	return &GlobalSymbolContext{MakeMemoryStore([]TupleSchema{}), nil, token.NewFileSet(), NewEventContext(), map[string]*ast.File{}, map[ast.Expr]types.Type{}}
 }
 
 func (context *GlobalSymbolContext) FileList() []*ast.File {

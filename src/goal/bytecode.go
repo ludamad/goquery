@@ -26,10 +26,10 @@ func NewBytecodeContext() *BytecodeContext {
 	return &BytecodeContext{[]Bytecode{}, 0, []goalRef{}, []goalRef{}, []LoopContext{}}
 }
 
-func (bc *BytecodeContext) copyStrings(num int) []string {
-	tuple := make([]string, num)
+func (bc *BytecodeContext) copyStackObjects(num int) []interface{} {
+	tuple := make([]interface{}, num)
 	for i, v := range bc.Stack[len(bc.Stack)-num:] {
-		tuple[i] = v.Value.(string)
+		tuple[i] = v.Value
 	}
 	return tuple
 }

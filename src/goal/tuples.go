@@ -3,12 +3,12 @@ package goal
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"database/sql"
 )
 
 type fieldType int
 const (
-	FIELD_TYPE_STRING FieldType = iota
+	FIELD_TYPE_STRING fieldType = iota
 	FIELD_TYPE_INT
 )
 
@@ -46,12 +46,12 @@ func (schema *TupleSchema) keyStringFromKeys(keys []string) string {
 
 func (schema *TupleSchema) FieldLength() int { return len(schema.Fields) }
 func (schema *TupleSchema) KeyLength() int   { return len(schema.Keys) }
-func (schema *TupleSchema) SaveTuple(tuple []string) {
-	schema.Store[schema.keyStringFromTuple(tuple)] = tuple
+func (schema *TupleSchema) SaveTuple(db *sql.DB, tuple []interface{}) {
+	schema.DBSchema.Insert(db, tuple)
 }
 
 func (schema *TupleSchema) LoadTuple(keys []string) []string {
-	return schema.Store[schema.keyStringFromKeys(keys)]
+	panic("Dummied out!")
 }
 
 func indexOf(fields []field, test string) int {
@@ -61,16 +61,16 @@ func indexOf(fields []field, test string) int {
 		}
 	}
 
-	log.Panicf("Could not find '%s' in %s", test, strs)
+	panic("Could not find '" + test + "' in " + fmt.Sprint(fields))
 	return 0
 }
 
-func makeSchema(id int, name string, fields []field, keys []string) TupleSchema {
+func makeSchema(id int, name string, fields []field, keys []string, schema *DatabaseSchema) TupleSchema {
 	keyIndices := []int{}
 	for _, key := range keys {
 		keyIndices = append(keyIndices, indexOf(fields, key))
 	}
-	return TupleSchema{id, name, fields, keys, keyIndices, }
+	return TupleSchema{id, name, fields, keys, keyIndices, schema}
 }
 
 type TupleStore struct {
@@ -81,18 +81,18 @@ func MakeMemoryStore(schemas []TupleSchema) *TupleStore {
 	return &TupleStore{schemas}
 }
 
-func (s *TupleStore) DefineTuple(name string, fieldNames, keys []string) int {
+func (s *TupleStore) DefineTuple(name string, fieldNames, keys []string, schema *DatabaseSchema) int {
 	// TODO: All types are strings for now:
 	fields := []field{}
 	for _, fname := range fieldNames {
 		fields = append(fields, field {fname, FIELD_TYPE_STRING})
 	} 
-	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys))
+	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys, schema))
 	return len(s.Schemas) - 1
 }
 
-func (s *TupleStore) SaveTuple(tupleKind int, tuple []string) {
-	s.Schemas[tupleKind].SaveTuple(tuple)
+func (s *TupleStore) SaveTuple(db *sql.DB, tupleKind int, tuple []interface{}) {
+	s.Schemas[tupleKind].SaveTuple(db, tuple)
 }
 
 func (s *TupleStore) SchemaFromName(name string) *TupleSchema {
@@ -107,13 +107,4 @@ func (s *TupleStore) SchemaFromName(name string) *TupleSchema {
 func (s *TupleStore) LoadTuple(tupleKind int, keys []string) []string {
 	t := s.Schemas[tupleKind].LoadTuple(keys)
 	return t
-}
-
-func (s *TupleStore) PrintStore() {
-	for _, schema := range s.Schemas {
-		fmt.Printf("Schema %s:\n", schema.Name)
-		for k, v := range schema.Store {
-			fmt.Printf("%s => %s\n", k, v)
-		}
-	}
 }

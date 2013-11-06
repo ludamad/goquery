@@ -59,7 +59,7 @@ type DatabaseSchema struct {
 }
 
 func makeDatabaseSchema(name string, fields []field, keys []string) *DatabaseSchema {
-	return *DatabaseSchema {name, fields, keys, nil}
+	return &DatabaseSchema {name, fields, keys, nil}
 }
 
 func (ds *DatabaseSchema) Flush() {
@@ -69,7 +69,7 @@ func (ds *DatabaseSchema) Flush() {
 }
 
 func sqlCheckName(name string) {
-	if !regexp.MatchString(name, "^[\w_]+$") {
+	if match,_ := regexp.MatchString(name, "^[\\w_]+$") ; match {
 		panic("Sql-exposed names must consist only of alphanumeric characters, or _! Bad name: " + name)
 	}
 }
@@ -93,14 +93,9 @@ func (ds *DatabaseSchema) CreateTable(db *sql.DB) {
 }
 
 func (ds *DatabaseSchema) Insert(db *sql.DB, fieldData []interface{}) {
-	if ds.batcher != nil {
+	if ds.batcher == nil {
+		ds.CreateTable(db)
 		ds.batcher = makeInsertBatcher(db, ds.Name, ds.Fields)
 	}
 	ds.batcher.Insert(fieldData)
 }
-
-type DatabaseContext struct {
-	db *sql.DB
-	schema []DatabaseSchema
-}
-

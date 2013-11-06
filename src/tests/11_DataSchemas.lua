@@ -25,5 +25,3 @@ EventCaseType (
 )
 
 Analyze (Files "src/tests/interface.go")
-
-goal.PrintStore()

@@ -127,7 +127,6 @@ function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushCo
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
 goal.SchemaFromName = gsym.SchemaFromName
-goal.PrintStore = gsym.PrintStore
 --------------------------------------------------------------------------------
 -- Stack allocation helpers. Provide efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
