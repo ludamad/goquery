@@ -6,13 +6,24 @@ import (
 	"log"
 )
 
+type fieldType int
+const (
+	FIELD_TYPE_STRING FieldType = iota
+	FIELD_TYPE_INT
+)
+
+type field struct {
+	Name string
+	Type fieldType
+}
+
 type TupleSchema struct {
 	Id         int
 	Name       string
-	Fields     []string
+	Fields     []field
 	Keys       []string
 	KeyIndices []int
-	Store      map[string][]string
+	DBSchema   *DatabaseSchema
 }
 
 func (schema *TupleSchema) keyStringFromTuple(tuple []string) string {
@@ -43,9 +54,9 @@ func (schema *TupleSchema) LoadTuple(keys []string) []string {
 	return schema.Store[schema.keyStringFromKeys(keys)]
 }
 
-func indexOf(strs []string, test string) int {
-	for i, str := range strs {
-		if str == test {
+func indexOf(fields []field, test string) int {
+	for i, f := range fields {
+		if f.Name == test {
 			return i
 		}
 	}
@@ -54,12 +65,12 @@ func indexOf(strs []string, test string) int {
 	return 0
 }
 
-func makeSchema(id int, name string, fields, keys []string) TupleSchema {
+func makeSchema(id int, name string, fields []field, keys []string) TupleSchema {
 	keyIndices := []int{}
 	for _, key := range keys {
 		keyIndices = append(keyIndices, indexOf(fields, key))
 	}
-	return TupleSchema{id, name, fields, keys, keyIndices, map[string][]string{}}
+	return TupleSchema{id, name, fields, keys, keyIndices, }
 }
 
 type TupleStore struct {
@@ -70,7 +81,12 @@ func MakeMemoryStore(schemas []TupleSchema) *TupleStore {
 	return &TupleStore{schemas}
 }
 
-func (s *TupleStore) DefineTuple(name string, fields, keys []string) int {
+func (s *TupleStore) DefineTuple(name string, fieldNames, keys []string) int {
+	// TODO: All types are strings for now:
+	fields := []field{}
+	for _, fname := range fieldNames {
+		fields = append(fields, field {fname, FIELD_TYPE_STRING})
+	} 
 	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys))
 	return len(s.Schemas) - 1
 }
