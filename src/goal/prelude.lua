@@ -127,6 +127,9 @@ function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushCo
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 goal.DefineTuple = gsym.DefineTuple
 goal.SchemaFromName = gsym.SchemaFromName
+function goal.DatabaseConnect(...) gsym.DB = goal.NewDBConnection(...) end
+goal.Query = gsym.Query
+goal.FlushBuffers = gsym.FlushBuffers
 --------------------------------------------------------------------------------
 -- Stack allocation helpers. Provide efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
@@ -484,7 +487,7 @@ local eventChildren = {}
 for k, v in pairs(goal.TypeInfo.NameToType) do eventChildren[k] = valueNode end 
 -- Root level functions
 for root in values {
-    makeNT("Analyze", { Files = listNode }, true, 
+    makeNT("Analyze", { Files = listNode, Database = valueNode }, true, 
         function(t)
             goal.FlushDefers()
             ColorPrint("36;1", "-- ANALYZING:\n")
@@ -492,6 +495,7 @@ for root in values {
                 if type(v) == "table" then Map(Curry(append,files), v)
                 else append(files,v) end
             end 
+            if t.values.Database then goal.DatabaseConnect(t.values.Database, --[[Remove previous]] true) end
             goal.GlobalSymbolContext.AnalyzeAll(files)
             ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end),

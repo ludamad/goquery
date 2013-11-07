@@ -1,29 +1,58 @@
 package goal
 
 import (
+	_ "github.com/mattn/go-sqlite3"
 	"database/sql"
-	"log"
 	"os"
 	"strings"
 	"fmt"
 	"regexp"
 )
 
-func dbInitialize(driver string, filename string, deletePrevious bool) *sql.DB{
+type DatabaseContext struct {
+	db *sql.DB
+	insertCount int
+	insertTransaction *sql.Tx
+}
+
+// Global symbol context functions:
+// Run a query. Return the column names, and the tuple results.
+func (context *GlobalSymbolContext) Query(query string, args ...interface{}) ([]string, [][]interface{}) {
+	rows, err := context.DB.Query(query, args...)
+	if err != nil {
+		panic(err)
+	}
+    columns, _ := rows.Columns()
+    results := [][]interface{}{}
+	for rows.Next() {
+		ifaceBoxes := []interface{}{}
+		for i := 0; i < len(columns); i++ {
+			ifaceBoxes = append(ifaceBoxes, new(interface{}))
+		}
+	    err = rows.Scan(ifaceBoxes...)
+	    result := make([]interface{}, len(columns))
+		for i := 0; i < len(columns); i++ {
+			result[i] = *ifaceBoxes[i].(*interface{})	    
+		}
+		results = append(results, result)
+    }
+	err = rows.Err()
+	if err != nil {
+		panic(err)
+	}
+	return columns, results
+}
+
+// Database connection and insertion functions:
+func NewDBConnection(filename string, deletePrevious bool) *sql.DB {
 	if deletePrevious {
 		os.Remove(filename)
 	}
-	db, err := sql.Open(driver, filename)
+	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	return db
-}
-
-type insertBatcher struct {
-	insertCount int
-	insertTransaction *sql.Tx
-	insertStatement *sql.Stmt
 }
 
 func (b *insertBatcher) Insert(fieldData []interface{}) {
@@ -55,7 +84,7 @@ type DatabaseSchema struct {
 	Name       string
 	Fields     []field
 	Keys []string
-	batcher	*insertBatcher
+	insertStatement	*sql.Stmt
 }
 
 func makeDatabaseSchema(name string, fields []field, keys []string) *DatabaseSchema {

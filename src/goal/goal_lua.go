@@ -58,6 +58,7 @@ var _API luar.Map = luar.Map{
 	// See walker.go for details:
 	"NewBytecodeContext": NewBytecodeContext,
 	"NewGlobalContext":   NewGlobalContext,
+	"NewDBConnection":   NewDBConnection,
 	"FindGoFiles":        findGoFiles,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:

@@ -47,6 +47,9 @@ func (schema *TupleSchema) keyStringFromKeys(keys []string) string {
 func (schema *TupleSchema) FieldLength() int { return len(schema.Fields) }
 func (schema *TupleSchema) KeyLength() int   { return len(schema.Keys) }
 func (schema *TupleSchema) SaveTuple(db *sql.DB, tuple []interface{}) {
+	if db == nil {
+		panic("A database connection was not provided! Provide a 'Database' argument to 'Analyze'.")
+	}
 	schema.DBSchema.Insert(db, tuple)
 }
 
@@ -81,18 +84,25 @@ func MakeMemoryStore(schemas []TupleSchema) *TupleStore {
 	return &TupleStore{schemas}
 }
 
-func (s *TupleStore) DefineTuple(name string, fieldNames, keys []string, schema *DatabaseSchema) int {
+func (s *TupleStore) DefineTuple(name string, fieldNames, keys []string) int {
 	// TODO: All types are strings for now:
 	fields := []field{}
 	for _, fname := range fieldNames {
 		fields = append(fields, field {fname, FIELD_TYPE_STRING})
 	} 
-	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys, schema))
+	dbSchema := makeDatabaseSchema(name, fields, keys)
+	s.Schemas = append(s.Schemas, makeSchema(len(s.Schemas), name, fields, keys, dbSchema))
 	return len(s.Schemas) - 1
 }
 
 func (s *TupleStore) SaveTuple(db *sql.DB, tupleKind int, tuple []interface{}) {
 	s.Schemas[tupleKind].SaveTuple(db, tuple)
+}
+
+func (s *TupleStore) FlushBuffers() {
+	for _, schema := range s.Schemas {
+		schema.DBSchema.Flush()
+	}
 }
 
 func (s *TupleStore) SchemaFromName(name string) *TupleSchema {

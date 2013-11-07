@@ -24,4 +24,7 @@ EventCaseType (
     )
 )
 
-Analyze (Files "src/tests/interface.go")
+Analyze (
+    Files "src/tests/interface.go",
+    Database "11_DataSchemas.db"
+)
