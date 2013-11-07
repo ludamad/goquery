@@ -18,6 +18,7 @@ iref: $(IREF_LIST)
 
 $(BUILD_LIST): %_build: %_iref
 	$(GOBUILD) $(PACKAGES)
+	$(GOCMD) build src/main.go
 $(CLEAN_LIST): %_clean:
 	$(GOCLEAN) $(PACKAGES)
 $(IREF_LIST): %_iref:

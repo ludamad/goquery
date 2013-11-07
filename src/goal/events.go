@@ -6,11 +6,18 @@ import (
 )
 
 type EventContext struct {
-	Events map[reflect.Type]*BytecodeContext
+	Events map[reflect.Type][]*BytecodeContext
 }
 
 func NewEventContext() *EventContext {
-	return &EventContext{map[reflect.Type]*BytecodeContext{}}
+	return &EventContext{map[reflect.Type][]*BytecodeContext{}}
+}
+
+func (ev *EventContext) PushEvent(typ reflect.Type, bc *BytecodeContext) {
+	if ev.Events[typ] == nil {
+		ev.Events[typ] = []*BytecodeContext{}
+	}
+	ev.Events[typ] = append(ev.Events[typ], bc)
 }
 
 type traverseContext struct {
@@ -23,9 +30,11 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 	if reflect.TypeOf(n) == nil {
 		return ev
 	}
-	bc := ev.Events[reflect.TypeOf(n).Elem()]
-	if bc != nil {
-		bc.Exec(ev.globSym, ev.file, []interface{}{n})
+	bcList := ev.Events[reflect.TypeOf(n).Elem()]
+	if bcList != nil {
+		for _, bc := range(bcList) {
+			bc.Exec(ev.globSym, ev.file, []interface{}{n})
+		}
 	}
 	return ev
 }

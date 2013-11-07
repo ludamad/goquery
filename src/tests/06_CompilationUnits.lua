@@ -1,7 +1,7 @@
 local SNodes, ENodes = goal.SNodes, goal.ENodes
 
 local function Test(varName, ...)
-    goal.SetEvent("FuncDecl", goal.Compile(goal.CodeParse(...), varName))
+    goal.PushEvent("FuncDecl", goal.Compile(goal.CodeParse(...), varName))
     Analyze (
         Files "src/tests/sample.go"
     )

@@ -122,14 +122,11 @@ end
 -- For testing purposes:
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
-function goal.SetEvent(type, ev) prettyBytecode(ev) ; events.Events[goal.TypeInfo.NameToType[type]] = ev end
+function goal.PushEvent(type, ev) prettyBytecode(ev) ; events.PushEvent(goal.TypeInfo.NameToType[type], ev) end
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
-goal.DefineTuple = gsym.DefineTuple
-goal.SchemaFromName = gsym.SchemaFromName
-function goal.DatabaseConnect(...) gsym.DB = goal.NewDBConnection(...) end
-goal.Query = gsym.Query
-goal.FlushBuffers = gsym.FlushBuffers
+-- Members on a global object -> promote to global functions for convenience:
+for k in values {"DefineData", "SchemaFromName", "OpenConnection", "CloseConnection", "Commit", "Query"} do goal[k] = gsym[k] end
 --------------------------------------------------------------------------------
 -- Stack allocation helpers. Provide efficient allocation of common subobjects.
 --------------------------------------------------------------------------------
@@ -369,7 +366,11 @@ end end
 function goal.CodeParse(...) return Map(Curry(nodeTransform, SNodes), pack(...)) end
 function goal.CodeBlock(...) prettyAst(...) ; return NBlock(goal.CodeParse(...)) end
 -- Create an AST node from a label-node using SNodes:
-function goal.ExprParse(node) return nodeTransform(ENodes, node) end
+local function constant(val) return function(C) return function() C.CompileConstant(val) end end end
+function goal.ExprParse(node) 
+    if type(node) == "string" then return constant(node) 
+    else return nodeTransform(ENodes, node) end 
+end
 function goal.ExpressionsParse(...) return Map(goal.ExprParse, pack(...)) end
 -- Program AST basic statements:
 local basic = {} ; goal.BasicSNodes = basic -- Basic statements
@@ -446,13 +447,16 @@ function exprs.TypeCheck(C, typeExpr, objExpr)
 end
 function exprs.var(C, repr) return C.ResolveObjectRef(repr) end
 function exprs.constant(C, val) return function() C.CompileConstant(val) end end
-local function binOp(op) return function(C, val1, val2)
-    val1 = val1(C) ; val2 = val2(C);
-    return function(C) val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
+local function unaryOp(op) return function(C, val)
+    val = goal.ExprParse(val)(C) ; return function() val(C) ; C.Compile123("BC_UNARY_OP", op) end
 end end
-for k,v in pairs { 
-    And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR,
-} do exprs[k] = binOp(v) end
+local function binOp(op) return function(C, val1, val2)
+    val1 = goal.ExprParse(val1)(C) ; val2 = goal.ExprParse(val2)(C); return function() val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
+end end
+for k,v in pairs { Not = goal.UNARY_OP_NOT } do exprs[k] = unaryOp(v) end
+for k,v in pairs { And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR, Index = goal.BIN_OP_INDEX, Concat = goal.BIN_OP_CONCAT } do exprs[k] = binOp(v) end
+
+
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
 local VarBuilder = class "VarBuilder"
@@ -495,15 +499,15 @@ for root in values {
                 if type(v) == "table" then Map(Curry(append,files), v)
                 else append(files,v) end
             end 
-            if t.values.Database then goal.DatabaseConnect(t.values.Database, --[[Remove previous]] true) end
             goal.GlobalSymbolContext.AnalyzeAll(files)
+            goal.Commit()
             ColorPrint("36;1", "-- FINISHED ANALYZING.\n")
         end),
     makeNT("Event", eventChildren, true,
         function(t)
             goal.FlushDefers()
             local event, varName = table.next(t.values) -- Find first
-            return function(...) goal.SetEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
+            return function(...) goal.PushEvent(event, goal.Compile(goal.CodeParse(...), varName)) end
         end)
 } do _G[root.label] = root end
 -- Data definition
@@ -513,7 +517,7 @@ function Data(name) return function(...)
     for v in values(pack(...)) do
         if type(v) == "string" then append(fields, v) else append(fields, v.values[1]) ; append(keys, v.values[1]) end
     end
-    goal.DefineTuple(name, fields, keys)
+    goal.DefineData(name, fields, keys)
 end end
 
 -- Various constants
@@ -524,6 +528,18 @@ function FindFiles(dir)
     for i=1,#files do args[i]=files[i] end
     return args
 end
+function DataSet(filename) goal.OpenConnection(filename, --[[Remove previous]] true) end
+DataClose = goal.CloseConnection ; DataCommit = goal.Commit
+function DataQuery(...)
+    local ret = {} ; local columns,results = goal.Query(...)
+    for i, result in ipairs(results) do
+        ret[i] = {} ; for j, subresult in ipairs(result) do
+            ret[i][columns[j]] = subresult 
+        end
+    end ; return ret
+end
+    
+
 True, False = constantN(true), constantN(false)
 Otherwise = True ; Always = True
  -- Expose all object members

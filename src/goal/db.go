@@ -1,50 +1,49 @@
 package goal
 
 import (
-	_ "github.com/mattn/go-sqlite3"
 	"database/sql"
-	"os"
-	"strings"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
+	"os"
 	"regexp"
+	"strings"
 )
 
 type DatabaseContext struct {
-	db *sql.DB
-	insertCount int
+	DB                *sql.DB
 	insertTransaction *sql.Tx
+	insertStatements  map[int]*sql.Stmt
 }
 
-// Global symbol context functions:
-// Run a query. Return the column names, and the tuple results.
-func (context *GlobalSymbolContext) Query(query string, args ...interface{}) ([]string, [][]interface{}) {
-	rows, err := context.DB.Query(query, args...)
+func (context *DatabaseContext) makeInsertStatement(name string, fields []field) *sql.Stmt {
+	if context.insertTransaction == nil { // Make sure we have an action transaction
+		tx, err := context.DB.Begin()
+		if err != nil {
+			panic(err)
+		}
+		context.insertTransaction = tx
+	}
+	// Assumes at least one arg in 'args':
+	marks := "?" + strings.Repeat(", ?", len(fields)-1)
+	sql := "INSERT INTO " + name + " values(" + marks + ")"
+	stmt, err := context.insertTransaction.Prepare(sql)
 	if err != nil {
 		panic(err)
 	}
-    columns, _ := rows.Columns()
-    results := [][]interface{}{}
-	for rows.Next() {
-		ifaceBoxes := []interface{}{}
-		for i := 0; i < len(columns); i++ {
-			ifaceBoxes = append(ifaceBoxes, new(interface{}))
-		}
-	    err = rows.Scan(ifaceBoxes...)
-	    result := make([]interface{}, len(columns))
-		for i := 0; i < len(columns); i++ {
-			result[i] = *ifaceBoxes[i].(*interface{})	    
-		}
-		results = append(results, result)
-    }
-	err = rows.Err()
-	if err != nil {
-		panic(err)
+	return stmt
+}
+
+func (context *DatabaseContext) GetInsertStatement(ds *DataSchema) *sql.Stmt {
+	stmt := context.insertStatements[ds.Id]
+	if stmt == nil {
+		stmt = context.makeInsertStatement(ds.Name, ds.Fields)
+		context.insertStatements[ds.Id] = stmt
 	}
-	return columns, results
+	return stmt
 }
 
 // Database connection and insertion functions:
-func NewDBConnection(filename string, deletePrevious bool) *sql.DB {
+func newDBConnection(filename string, deletePrevious bool) *sql.DB {
 	if deletePrevious {
 		os.Remove(filename)
 	}
@@ -55,76 +54,83 @@ func NewDBConnection(filename string, deletePrevious bool) *sql.DB {
 	return db
 }
 
-func (b *insertBatcher) Insert(fieldData []interface{}) {
-	b.insertStatement.Exec(fieldData...)
+func (context *DatabaseContext) OpenConnection(filename string, deletePrevious bool) {
+	if context.DB != nil {
+		panic("Database connection already open!")
+	}
+	context.DB = newDBConnection(filename, deletePrevious)
+}
+func (context *DatabaseContext) CloseConnection() {
+	if context.DB != nil {
+		context.Commit()
+		context.DB.Close()
+		context.DB = nil
+	}
 }
 
-func (b *insertBatcher) Close() {
-	b.insertStatement.Close()
-	b.insertTransaction.Commit()
+func (context *DatabaseContext) Commit() {
+	for i, stmt := range context.insertStatements {
+		stmt.Close()
+		delete(context.insertStatements, i)
+	}
+	if context.insertTransaction != nil {
+		context.insertTransaction.Commit()
+		context.insertTransaction = nil
+	}
 }
 
-func makeInsertBatcher(db *sql.DB, name string, fields []field) *insertBatcher {
-	// Assumes at least one arg in 'args':
-	marks := "?" + strings.Repeat(", ?", len(fields)-1)
-	sql := "INSERT INTO " + name + " values(" + marks + ")"
-	tx, err := db.Begin()
+// Global symbol context functions:
+// Run a query. Return the column names, and the tuple results.
+func (context *DatabaseContext) Query(query string, args ...interface{}) ([]string, [][]interface{}) {
+	rows, err := context.DB.Query(query, args...)
 	if err != nil {
 		panic(err)
 	}
-
-	stmt, err := tx.Prepare(sql)
+	columns, _ := rows.Columns()
+	results := [][]interface{}{}
+	for rows.Next() {
+		ifaceBoxes := []interface{}{}
+		for i := 0; i < len(columns); i++ {
+			ifaceBoxes = append(ifaceBoxes, new(interface{}))
+		}
+		err = rows.Scan(ifaceBoxes...)
+		result := make([]interface{}, len(columns))
+		for i := 0; i < len(columns); i++ {
+			result[i] = *ifaceBoxes[i].(*interface{})
+		}
+		results = append(results, result)
+	}
+	err = rows.Err()
 	if err != nil {
 		panic(err)
 	}
-	return &insertBatcher{0, tx, stmt}
-}
-
-type DatabaseSchema struct {
-	Name       string
-	Fields     []field
-	Keys []string
-	insertStatement	*sql.Stmt
-}
-
-func makeDatabaseSchema(name string, fields []field, keys []string) *DatabaseSchema {
-	return &DatabaseSchema {name, fields, keys, nil}
-}
-
-func (ds *DatabaseSchema) Flush() {
-	if ds.batcher != nil {
-		ds.batcher.Close() ; ds.batcher = nil
-	}
+	return columns, results
 }
 
 func sqlCheckName(name string) {
-	if match,_ := regexp.MatchString(name, "^[\\w_]+$") ; match {
+	if match, _ := regexp.MatchString(name, "^[\\w_]+$"); match {
 		panic("Sql-exposed names must consist only of alphanumeric characters, or _! Bad name: " + name)
 	}
 }
 
-func (ds *DatabaseSchema) CreateTable(db *sql.DB) {
+func (ds *DataSchema) CreateTable(context *DatabaseContext) {
 	sqlCheckName(ds.Name) // Be a little safer about string interpolation
 	fieldSchema := []string{}
 	for _, f := range ds.Fields {
 		sqlCheckName(f.Name)
 		if f.Type == FIELD_TYPE_STRING {
-			fieldSchema = append(fieldSchema, f.Name + " TEXT")
+			fieldSchema = append(fieldSchema, f.Name+" TEXT")
 		} else {
 			panic("Unexpected field type!")
 		}
 	}
 	sql := fmt.Sprintf("CREATE TABLE %s(%s, PRIMARY KEY (%s))", ds.Name, strings.Join(fieldSchema, ","), strings.Join(ds.Keys, ","))
-	_, err := db.Exec(sql)
+	_, err := context.DB.Exec(sql)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (ds *DatabaseSchema) Insert(db *sql.DB, fieldData []interface{}) {
-	if ds.batcher == nil {
-		ds.CreateTable(db)
-		ds.batcher = makeInsertBatcher(db, ds.Name, ds.Fields)
-	}
-	ds.batcher.Insert(fieldData)
+func (ds *DataSchema) Insert(context *DatabaseContext, fieldData []interface{}) {
+	context.GetInsertStatement(ds).Exec(fieldData...)
 }

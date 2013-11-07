@@ -51,6 +51,7 @@ const (
 	BIN_OP_OR // Evaluates an object-oriented 'or'
 	BIN_OP_XOR // Evaluates a 'xor
 	BIN_OP_INDEX // Evaluates a slice-index
+	BIN_OP_CONCAT
 	BIN_OP_TYPECHECK
 )
 

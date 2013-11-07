@@ -75,7 +75,7 @@ function goal.SimpleRun(constants, bytecodes)
     bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {})
 end
 
-function goal.SetEvent(type, ev)
+function goal.PushEvent(type, ev)
     events[type] = ev
 end
 
@@ -91,7 +91,7 @@ function goal.PushBytecodes(bc, bytecodes)
     for _, code in ipairs(bytecodes) do bc.PushBytecode(code) end
 end
 
-goal.DefineTuple = gsym.DefineTuple
+goal.DefineData = gsym.DefineData
 
 --------------------------------------------------------------------------------
 -- Bytecode compiler
@@ -269,7 +269,7 @@ function Event(type, name)
             compiler.code.Add(node(compiler))
         end
         compiler.CompileAll()
-        goal.SetEvent(type, compiler.bytes)
+        goal.PushEvent(type, compiler.bytes)
     end
 end
 

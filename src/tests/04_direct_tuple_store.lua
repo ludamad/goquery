@@ -1,15 +1,16 @@
-goal.DatabaseConnect("test.db", --[[Remove previous]] true) 
+DataSet "test.db"
 
-goal.DefineTuple("MyTable", {"Name", "Location"}, {"Name", "Location"})
-
+goal.DefineData("MyTable", {"Name", "Location"}, {"Name", "Location"})
 goal.SimpleRun({
     "Foo", "Oshawa"
 }, {
     CONSTANT(0), CONSTANT(1), SAVE_TUPLE(0,0, 2),
-})
+}
+)
 
-goal.FlushBuffers()
+DataCommit()
 
+-- Play with the results, from Lua:
 local columns, results = goal.Query "select * from Mytable"
 for i, column in ipairs(columns) do
     io.write(column .. '\t')
@@ -22,3 +23,4 @@ for i, result in ipairs(results) do
     print()
 end
 
+DataClose()

@@ -1,4 +1,4 @@
-goal.SetEvent("FuncDecl", goal.SimpleBytecodeContext(
+goal.PushEvent("FuncDecl", goal.SimpleBytecodeContext(
     {"FuncDecl: Found %s '%s' at '%s'\n"}, {
         CONSTANT(0),
         SPECIAL_PUSH(0, 0, goal.SMEMBER_type),

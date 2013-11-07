@@ -58,7 +58,6 @@ var _API luar.Map = luar.Map{
 	// See walker.go for details:
 	"NewBytecodeContext": NewBytecodeContext,
 	"NewGlobalContext":   NewGlobalContext,
-	"NewDBConnection":   NewDBConnection,
 	"FindGoFiles":        findGoFiles,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
@@ -75,6 +74,7 @@ var _API luar.Map = luar.Map{
 	"BC_MAKE_TUPLE":   BC_MAKE_TUPLE,
 	"BC_JMP_FALSE":    BC_JMP_FALSE,
 	"BC_BIN_OP":       BC_BIN_OP,
+	"BC_UNARY_OP":       BC_UNARY_OP,
 	"BC_JMP":          BC_JMP,
 	"BC_PRINTFN":      BC_PRINTFN,
 	"BC_SPRINTFN":     BC_SPRINTFN,
@@ -91,6 +91,7 @@ var _API luar.Map = luar.Map{
 	"BIN_OP_OR":        BIN_OP_OR,
 	"BIN_OP_XOR":       BIN_OP_XOR,
 	"BIN_OP_INDEX":     BIN_OP_INDEX,
+	"BIN_OP_CONCAT":     BIN_OP_CONCAT,
 	"BIN_OP_TYPECHECK": BIN_OP_TYPECHECK,
 
 	"UNARY_OP_NOT": UNARY_OP_NOT,

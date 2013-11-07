@@ -1,4 +1,4 @@
-goal.SetEvent("FuncDecl", goal.SimpleBytecodeContext({
+goal.PushEvent("FuncDecl", goal.SimpleBytecodeContext({
     "FuncDecl: Function '%s' has receiver type '%s'.\n",
     "FuncDecl: Function '%s' has no receiver type.\n"
 }, {

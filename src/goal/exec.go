@@ -31,6 +31,13 @@ func isTrueValue(val interface{}) bool {
 	return (val == nil || val == false || val == "");
 }
 
+func (bc BytecodeExecContext) resolveUnaryOp(id int, val goalRef) goalRef {
+	switch id {
+		case UNARY_OP_NOT: return makeBoolRef(!isTrueValue(val))  
+	}
+	panic("Unexpected unary op")
+}
+
 func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) goalRef {
 	switch id {
 		case BIN_OP_AND: if !isTrueValue(val1.Value) { return val1 } else {return val2 }
@@ -38,6 +45,7 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 		case BIN_OP_XOR: if isTrueValue(val1.Value) != isTrueValue(val2.Value) { return makeBoolRef(true) } else {makeBoolRef(false) }
 		case BIN_OP_TYPECHECK: if resolveType(val2.Value) == val1.Value.(reflect.Type) { return makeBoolRef(true) } else {return makeBoolRef(false) }
 		case BIN_OP_INDEX: return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
+		case BIN_OP_CONCAT: return makeStrRef(val1.Value.(string) + val2.Value.(string))
 	}
 	panic("Unexpected bin op")
 }
@@ -45,8 +53,8 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 func dumpStack(refs []goalRef) {
 	for i,ref := range refs {
 		if ref.Value == nil {
-		fmt.Printf("\t%d) nil\n", i) } else {
-		fmt.Printf("\t%d) %s\n", i, resolveType(ref.Value).Name())
+			fmt.Printf("\t%d) nil\n", i) } else {
+			fmt.Printf("\t%d) %s\n", i, resolveType(ref.Value).Name())
 		}
 	}
 }
@@ -90,11 +98,11 @@ func (bc BytecodeExecContext) execOne() {
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
 		n := int(code.Val3)
-		bc.SaveTuple(bc.DB, code.Bytes1to2(), bc.copyStackObjects(n))
+		bc.SaveData(bc.DatabaseContext, code.Bytes1to2(), bc.copyStackObjects(n))
 		bc.popN(n)
 //	case BC_LOAD_TUPLE:
 //		n := int(code.Val3)
-//		tuple := bc.LoadTuple(code.Bytes1to2(), bc.copyStrings(n))
+//		tuple := bc.LoadData(code.Bytes1to2(), bc.copyStrings(n))
 //		bc.popN(n)
 //		if len(tuple) == 0 {
 //			bc.push(makeStrRef(nil))
@@ -109,6 +117,10 @@ func (bc BytecodeExecContext) execOne() {
 	case BC_BIN_OP:
 		obj := bc.resolveBinOp(code.Bytes1to3(), bc.peek(2), bc.peek(1))
 		bc.popN(2);
+		bc.push(obj)
+	case BC_UNARY_OP:
+		obj := bc.resolveUnaryOp(code.Bytes1to3(), bc.peek(1))
+		bc.popN(1);
 		bc.push(obj)
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
