@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"runtime/debug"
 	"strings"
+	"time"
 )
 
 // Exposes the (very) low level GoAL API.
@@ -37,20 +38,27 @@ func colorPrint(code string, args ...interface{}) {
 	}
 }
 
-func findGoFiles(dir string) []string {
+func findGoFilesAux(dir string, fnames []string) []string {
 	io, err := ioutil.ReadDir(dir)
 	if err != nil {
-		fmt.Print(err)
-		return nil
+		panic(err)
 	}
-
-	fnames := []string{}
 	for _, file := range io {
 		fname := file.Name()
-		if strings.Index(fname, ".go") == len(fname)-3 {
-			fnames = append(fnames, dir+"/"+fname)
+		fullName := dir+"/"+fname
+		if len(fname) > 3 && strings.Index(fname, ".go") == len(fname)-3 {
+			fnames = append(fnames, fullName)
+		}
+		if file.IsDir() {
+			fnames = findGoFilesAux(fullName, fnames)
 		}
 	}
+	return fnames
+}
+
+func findGoFiles(dir string) []string {
+	fnames := []string{}
+	fnames = findGoFilesAux(dir, fnames)
 	return fnames
 }
 
@@ -61,6 +69,7 @@ var _API luar.Map = luar.Map{
 	"FindGoFiles":        findGoFiles,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
+	"CurrentTime":     time.Now,
 	"BC_CONSTANT":     BC_CONSTANT,
 	"BC_PUSH":         BC_PUSH,
 	"BC_PUSH_NIL":     BC_PUSH_NIL,

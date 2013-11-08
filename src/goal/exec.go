@@ -102,15 +102,6 @@ func (bc BytecodeExecContext) execOne() {
 		n := int(code.Val3)
 		bc.SaveData(bc.DatabaseContext, code.Bytes1to2(), bc.copyStackObjects(n))
 		bc.popN(n)
-//	case BC_LOAD_TUPLE:
-//		n := int(code.Val3)
-//		tuple := bc.LoadData(code.Bytes1to2(), bc.copyStrings(n))
-//		bc.popN(n)
-//		if len(tuple) == 0 {
-//			bc.push(makeStrRef(nil))
-//		} else {
-//			bc.push(makeStrRef(tuple))
-//		}
 	case BC_JMP_FALSE:
 		if isTrueValue(bc.peek(1).Value) {
 			bc.Index = code.Bytes1to3()
@@ -135,9 +126,6 @@ func (bc BytecodeExecContext) execOne() {
 	default:
 		panic("Bad bytes!")
 	}
-	
-//	fmt.Printf("After %d\n", bc.Index)
-//	dumpStack(bc.Stack)
 }
 
 func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objects []interface{}) {

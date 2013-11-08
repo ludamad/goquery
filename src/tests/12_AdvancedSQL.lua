@@ -43,8 +43,11 @@ EventCaseType (
 )
 Event (TypeSpec "n") (Store "type_declarations" (name "n", location "n"))
 
+local t = goal.CurrentTime()
 Analyze (Files(FindFiles "src/go-future/types"))
+print(goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
 
+local t = goal.CurrentTime()
 
 local results = DataQuery [[
 select iface, tname from
@@ -65,3 +68,4 @@ select iface, tname from
 for result in values(results) do
     print("Type '" .. result.tname .. "' satisfies '" .. result.iface .. "'")
 end
+print(goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")

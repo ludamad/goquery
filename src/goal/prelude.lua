@@ -518,10 +518,10 @@ end end
 
 -- Various constants
 local function constantN(val) return simpleNode("constant", val) end
-function FindFiles(dir)
+function FindFiles(dir, --[[Optional]] filter)
     local args = {}
     local files = goal.FindGoFiles(dir)
-    for i=1,#files do args[i]=files[i] end
+    for i=1,#files do if not filter or filter(files[i]) then append(args, files[i]) end end
     return args
 end
 function DataSet(filename) goal.OpenConnection(filename, --[[Remove previous]] true) end
