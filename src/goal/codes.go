@@ -53,10 +53,12 @@ const (
 	BIN_OP_INDEX // Evaluates a slice-index
 	BIN_OP_CONCAT
 	BIN_OP_TYPECHECK
+	BIN_OP_EQUAL
 )
 
 const (
 	UNARY_OP_NOT = iota // Evaluates a 'not' of the top element, pops it, pushes result
+	UNARY_OP_LEN
 )
 
 // Special members

@@ -93,8 +93,10 @@ var _API luar.Map = luar.Map{
 	"BIN_OP_INDEX":     BIN_OP_INDEX,
 	"BIN_OP_CONCAT":     BIN_OP_CONCAT,
 	"BIN_OP_TYPECHECK": BIN_OP_TYPECHECK,
+	"BIN_OP_EQUAL": BIN_OP_EQUAL,
 
 	"UNARY_OP_NOT": UNARY_OP_NOT,
+	"UNARY_OP_LEN": UNARY_OP_LEN,
 }
 
 func NewGoalLuaContext(namespace string) *lua.State {

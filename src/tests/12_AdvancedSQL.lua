@@ -26,6 +26,8 @@ EventCase(FuncDecl "f") (receiver "f")(
     Store "functions" (name "f", type "f", location "f")
 )
 
+local function CaseEmpty(var) return Case(Equal(Len(var), 0)) end 
+
 EventCaseType (
     TypeSpec "n", Type "n"
 ) (InterfaceType) (
@@ -34,32 +36,32 @@ EventCaseType (
     )
 ) (StructType) (
     ForAll "f" (Type.Fields.List "n") (
-       Case(Not(Names "f")) (
-            Store "type_method_inherits" (name "n", type "f") -- We inherit methods of all embedded types
+       CaseEmpty(Names "f") (
+           Store "type_method_inherits" (name "n", type "f") -- We inherit methods of all embedded types
        )
     )
 )
 Event (TypeSpec "n") (Store "type_declarations" (name "n", location "n"))
 
-Analyze (Files "src/tests/interface.go")
+Analyze (Files(FindFiles "src/go-future/types"))
+
 
 local results = DataQuery [[
-select interface, tname from
-    (select i.interface, m.receiver_type AS rtype, count(*) AS satisfied from 
+select iface, tname from
+    (select i.interface as iface, m.receiver_type AS rtype, count(*) AS satisfied from 
         methods m join interface_reqs i on m.name=i.name and m.type=i.type
         group by i.interface, m.receiver_type
     ) 
-   join 
+   join
     (select t.name as tname, embedded_type as etype from 
         type_declarations t left join type_method_inherits tmi 
-        where t.name=tmi.type
+        on t.name=tmi.type
     )
    where rtype in ("*" || etype, etype, tname, "*" || tname)
-   group by interface, tname
-   having sum(satisfied) == (select count(*) from interface_reqs iq where iq.interface = interface)
+   group by iface, tname
+   having sum(satisfied) == (select count(*) from interface_reqs iq where iq.interface = iface)
 ]]
 
 for result in values(results) do
-    print("Type '" .. result.tname .. "' satisfies '" .. result.interface .. "'")
+    print("Type '" .. result.tname .. "' satisfies '" .. result.iface .. "'")
 end
-

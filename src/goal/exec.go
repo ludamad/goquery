@@ -33,7 +33,8 @@ func isTrueValue(val interface{}) bool {
 
 func (bc BytecodeExecContext) resolveUnaryOp(id int, val goalRef) goalRef {
 	switch id {
-		case UNARY_OP_NOT: return makeBoolRef(!isTrueValue(val))  
+		case UNARY_OP_NOT: return makeBoolRef(!isTrueValue(val)) 
+		case UNARY_OP_LEN: return makeIntRef(reflect.ValueOf(val.Value).Len())  
 	}
 	panic("Unexpected unary op")
 }
@@ -46,6 +47,7 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 		case BIN_OP_TYPECHECK: if resolveType(val2.Value) == val1.Value.(reflect.Type) { return makeBoolRef(true) } else {return makeBoolRef(false) }
 		case BIN_OP_INDEX: return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
 		case BIN_OP_CONCAT: return makeStrRef(val1.Value.(string) + val2.Value.(string))
+		case BIN_OP_EQUAL: return makeBoolRef(val1.Value == val2.Value)
 	}
 	panic("Unexpected bin op")
 }

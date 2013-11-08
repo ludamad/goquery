@@ -122,7 +122,7 @@ end
 -- For testing purposes:
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
-function goal.PushEvent(type, ev) prettyBytecode(ev) ; events.PushEvent(goal.TypeInfo.NameToType[type], ev) end
+function goal.PushEvent(type, ev) events.PushEvent(goal.TypeInfo.NameToType[type], ev) end
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
 -- Members on a global object -> promote to global functions for convenience:
@@ -157,7 +157,7 @@ end
 function ObjectRef:AllocateIndex() if self.stackIndex then return self.stackIndex end -- Already resolved, return
     if self.previous then self.previous.AllocateIndex() ; self.stackIndex = self.allocator.Increment(self)
     elseif self.parent then self.parent.AllocateIndex() ; self.stackIndex = self.allocator.Increment(self) 
-    else self.stackIndex = -1 end ; print("Resolving ", self.name, "as", self.stackIndex) return self.stackIndex
+    else self.stackIndex = -1 end ; return self.stackIndex
 end
 -- Figure out how 'deep' we are, the elements at the end of a given stack frame start at 0
 function ObjectRef:ResolveSize()
@@ -205,7 +205,6 @@ for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i-1
 local function compileObjPushes(C, objs)
     for obj in values(objs) do if obj.RootName() ~= obj.name then
         local isSpecial, idx = obj.name:match("^%l"), obj.AllocateIndex()
-        print(obj.name, "Got ", idx)
         local ref = isSpecial and goal["SMEMBER_".. obj.name] or varIds[obj.name]  
         C.Compile12_3(isSpecial and "BC_SPECIAL_PUSH" or "BC_MEMBER_PUSH", obj.parent.AllocateIndex(), ref)
     end end ; return #objs
@@ -264,9 +263,6 @@ function Compiler:ResolveObjectRef(str)
 end
 
 function goal.Compile(nodes, --[[Optional]] varname)
-    for i,n in ipairs(nodes) do
-        pretty(i..")", n)
-    end
     local C = Compiler(varname) ; C.AddNodes(nodes) ; C.CompileAll() ; 
     return C.bytes
 end
@@ -323,7 +319,7 @@ end
 function NodeTransformer:AllLabelValues(--[[Optional]] t)
     t = t or {} ; for c in values(self.childWalkers or {}) do append(t, c.label) ; c.AllLabelValues(t) end ; return values(t)
 end
-function NodeTransformer:__call(...) pretty(...); return self.Apply(simpleNode(self.label, ...)) end
+function NodeTransformer:__call(...) return self.Apply(simpleNode(self.label, ...)) end
 --------------------------------------------------------------------------------
 -- Goal API and Program AST components. 
 -- The AST components emit code, and are created from the 
@@ -364,11 +360,11 @@ local function nodeTransform(nodeTable, lnode) if type(lnode) == "function" then
 end end
 -- Create an AST node from a list of label-nodes using SNodes:
 function goal.CodeParse(...) return Map(Curry(nodeTransform, SNodes), pack(...)) end
-function goal.CodeBlock(...) prettyAst(...) ; return NBlock(goal.CodeParse(...)) end
+function goal.CodeBlock(...) return NBlock(goal.CodeParse(...)) end
 -- Create an AST node from a label-node using SNodes:
 local function constant(val) return function(C) return function() C.CompileConstant(val) end end end
 function goal.ExprParse(node) 
-    if type(node) == "string" then return constant(node) 
+    if type(node) == "string" or type(node) == "number" then return constant(node) 
     else return nodeTransform(ENodes, node) end 
 end
 function goal.ExpressionsParse(...) return Map(goal.ExprParse, pack(...)) end
@@ -453,8 +449,8 @@ end end
 local function binOp(op) return function(C, val1, val2)
     val1 = goal.ExprParse(val1)(C) ; val2 = goal.ExprParse(val2)(C); return function() val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
 end end
-for k,v in pairs { Not = goal.UNARY_OP_NOT } do exprs[k] = unaryOp(v) end
-for k,v in pairs { And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR, Index = goal.BIN_OP_INDEX, Concat = goal.BIN_OP_CONCAT } do exprs[k] = binOp(v) end
+for k,v in pairs { Not = goal.UNARY_OP_NOT, Len = goal.UNARY_OP_LEN } do exprs[k] = unaryOp(v) end
+for k,v in pairs { And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR, Index = goal.BIN_OP_INDEX, Concat = goal.BIN_OP_CONCAT, Equal = goal.BIN_OP_EQUAL } do exprs[k] = binOp(v) end
 
 
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
