@@ -9,7 +9,7 @@ func (bc *BytecodeExecContext) sprintN(n int) string {
 	if n == 1 {
 		str = fmtString
 	} else {
-		args := bc.Stack[len(bc.Stack)-(n-1):]
+		args := (*bc.goalStack)[len(*bc.goalStack)-(n-1):]
 		// Helper to coerce []string -> ...interface{} (via ...string)
 		iargs := make([]interface{}, len(args))
 		for i := range args {
@@ -111,6 +111,11 @@ func (bc *BytecodeExecContext) execOne() {
 		bc.Push(obj)
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
+//	case BC_CALLN:
+//		n := code.Bytes1to3()
+//		subroutine := bc.Peek(1).Value.(*BytecodeContext)
+//		bc.PopN(1) // Pop the bytecode context
+//		bc.call(subroutine, n, true)
 	case BC_PRINTFN:
 		n := code.Bytes1to3()
 		fmt.Print(bc.sprintN(n))
@@ -122,9 +127,13 @@ func (bc *BytecodeExecContext) execOne() {
 	}
 }
 
-func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objStack *BytecodeObjectStack) {
-	stackCopy := *objStack
-	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, &stackCopy, 0}
+//func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int, pushReturned bool) {
+//	stackCopy := *bc.BytecodeObjectStack
+//	stackCopy.BaseIndex = len(bc.Stack) - nargs
+//}
+
+func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
+	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, stack, 0, 0}
 	for bcExecContext.Index < len(bc.Bytecodes) {
 		bcExecContext.execOne()
 	}

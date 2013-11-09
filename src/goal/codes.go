@@ -42,6 +42,8 @@ const (
 	BC_UNARY_OP // Performs unary operation <id>. Pops operands, pushes result
 	BC_PRINTFN // Takes <N>, first string is treated as format specifier, pops N, prints string
 	BC_SPRINTFN // Takes <N>, first string is treated as format specifier, pops N, pushes string
+	BC_CALLN
+	BC_EXECN
 )
 
 const (

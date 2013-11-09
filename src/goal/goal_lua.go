@@ -85,9 +85,15 @@ var _API luar.Map = luar.Map{
 	"BC_JMP":          BC_JMP,
 	"BC_PRINTFN":      BC_PRINTFN,
 	"BC_SPRINTFN":     BC_SPRINTFN,
-	"NewObjectStack":  func() *BytecodeObjectStack { return &BytecodeObjectStack{0, []goalRef{}} },
-	"MakeGoalRef":     makeGoalRef,
-	"Bytecode":        func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
+	"NewObjectStack": func(objs ...interface{}) *goalStack {
+		gs := &goalStack{}
+		for _, obj := range objs {
+			gs.Push(makeGoalRef(obj))
+		}
+		return gs
+	},
+	"MakeGoalRef": makeGoalRef,
+	"Bytecode":    func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
 	"TypeInfo": _TYPE_INFO,
 

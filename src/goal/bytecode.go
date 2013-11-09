@@ -9,16 +9,14 @@ type BytecodeContext struct {
 	Constants []goalRef
 }
 
-type BytecodeObjectStack struct {
-	BaseIndex int
-	Stack     []goalRef
-}
+type goalStack []goalRef
 
 type BytecodeExecContext struct {
 	*BytecodeContext
 	*GlobalSymbolContext
 	*FileSymbolContext
-	*BytecodeObjectStack
+	*goalStack
+	BaseStackIndex int
 	Index     int // Instruction pointer
 }
 
@@ -26,19 +24,19 @@ func NewBytecodeContext() *BytecodeContext {
 	return &BytecodeContext{[]Bytecode{}, []goalRef{}}
 }
 
-func (bc *BytecodeExecContext) copyStackObjects(num int) []interface{} {
+func (gs *goalStack) copyStackObjects(num int) []interface{} {
 	tuple := make([]interface{}, num)
-	for i, v := range bc.Stack[len(bc.Stack)-num:] {
+	for i, v := range (*gs)[len(*gs)-num:] {
 		tuple[i] = v.Value
 	}
 	return tuple
 }
 
 func (bc *BytecodeExecContext) concatStrings(num int) {
-	top := len(bc.Stack)
+	top := len(*bc.goalStack)
 	b := bytes.NewBufferString("")
 	for i := top - num; i < top; i++ {
-		b.WriteString(bc.Stack[i].Value.(string))
+		b.WriteString(bc.RawGet(i).Value.(string))
 	}
 	bc.PopN(num)
 	bc.Push(makeStrRef(b.String()))
@@ -66,18 +64,22 @@ func (bc *BytecodeContext) SetBytecode(index int, code Bytecode) {
 	bc.Bytecodes[index] = code
 }
 
-func (bc *BytecodeObjectStack) Push(obj goalRef) {
-	bc.Stack = append(bc.Stack, obj)
+func (gs *goalStack) Push(obj goalRef) {
+	*gs = append(*gs, obj)
 }
 
-func (bc *BytecodeObjectStack) Get(idx int) goalRef {
-	return bc.Stack[bc.BaseIndex + idx]
+func (bc *BytecodeExecContext) Get(idx int) goalRef {
+	return bc.RawGet(bc.BaseStackIndex + idx)
 }
 
-func (bc *BytecodeObjectStack) Peek(idx int) goalRef {
-	return bc.Stack[len(bc.Stack)-idx]
+func (gs *goalStack) Peek(idx int) goalRef {
+	return (*gs)[len(*gs)-idx]
 }
 
-func (bc *BytecodeObjectStack) PopN(num int) {
-	bc.Stack = bc.Stack[:len(bc.Stack)-num]
+func (gs *goalStack) RawGet(idx int) goalRef {
+	return (*gs)[idx]
+}
+
+func (gs *goalStack) PopN(num int) {
+	*gs = (*gs)[:len(*gs)-num]
 }
