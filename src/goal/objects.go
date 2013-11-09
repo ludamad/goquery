@@ -174,7 +174,7 @@ func makeIntRef(value interface{}) goalRef {
 }
 
 func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) goalRef {
-	n := bc.Stack[objIdx]
+	n := bc.Get(objIdx)
 
 	if n.Value == nil {
 		return makeStrRef("")
@@ -212,7 +212,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 }
 
 func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) goalRef {
-	ref := bc.Stack[objIdx]
+	ref := bc.Get(objIdx)
 	if ref.Value != nil && ref.typeTable == nil {
 		ref.typeTable = _TYPE_INFO.typeTables[resolveType(ref.Value)]
 	}

@@ -121,7 +121,7 @@ for k, v in pairs(goal) do
 end
 -- For testing purposes:
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
-function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {}) end
+function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; prettyBytecode(bc); bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, goal.NewObjectStack()) end
 function goal.PushEvent(type, ev) events.PushEvent(goal.TypeInfo.NameToType[type], ev) end
 function goal.PushConstants(bc, strings) for str in values(strings) do bc.PushConstant(str) end end
 function goal.PushBytecodes(bc, bytecodes) for code in values(bytecodes) do bc.PushBytecode(code) end end
@@ -199,6 +199,12 @@ function Compiler:Compile12_3(code, arg1, arg2)
     local b1,b2 = numToBytes(arg1, 2)
     return self.bytes.PushBytecode(goal.Bytecode(goal[code], b1,b2, arg2))
 end
+
+local customGetters = {}
+
+function Getter(name) assert(rawget(_G, name) == nil) ; return function(...)
+    
+end end
 
 local varIds = {}
 for i=1,#goal.TypeInfo.TypeMembers do varIds[goal.TypeInfo.TypeMembers[i]] = i-1 end
@@ -451,8 +457,6 @@ local function binOp(op) return function(C, val1, val2)
 end end
 for k,v in pairs { Not = goal.UNARY_OP_NOT, Len = goal.UNARY_OP_LEN } do exprs[k] = unaryOp(v) end
 for k,v in pairs { And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR, Index = goal.BIN_OP_INDEX, Concat = goal.BIN_OP_CONCAT, Equal = goal.BIN_OP_EQUAL } do exprs[k] = binOp(v) end
-
-
 table.merge(exprs, ENodes) -- ENodes is a superset of exprs
 -- Makes the AST nodes that form expressions look kind-of like lua refs:
 local VarBuilder = class "VarBuilder"
@@ -515,7 +519,6 @@ function Data(name) return function(...)
     end
     goal.DefineData(name, fields, keys)
 end end
-
 -- Various constants
 local function constantN(val) return simpleNode("constant", val) end
 function FindFiles(dir, --[[Optional]] filter)
@@ -534,8 +537,6 @@ function DataQuery(...)
         end
     end ; return ret
 end
-    
-
 True, False = constantN(true), constantN(false)
 Otherwise = True ; Always = True
  -- Expose all object members

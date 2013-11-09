@@ -36,8 +36,6 @@ const (
 	BC_NEXT // Takes <code index>, expects [object, key], leaves [object, next key, next value] on stack.
 	// If there is no next key, pops [object, key] and jumps to the code index.
 	BC_SAVE_TUPLE // Takes <tuple kind>, <tuple size>, pops tuple data from the stack
-	BC_LOAD_TUPLE // Takes <tuple kind>, <key size>, pushes tuple to stack
-	BC_MAKE_TUPLE // Takes <key size>, pushes a tuple (vector) onto the stack
 	BC_JMP_FALSE // Takes <code index>, jumps if the top element is: "", false, or nil. Pops the top element
 	BC_JMP // Takes <code index>, jumps unconditionally
 	BC_BIN_OP // Performs binary operation <id>. Pops both operands, pushes result
@@ -64,6 +62,7 @@ const (
 // Special members
 const (
 	SMEMBER_location = iota
+	SMEMBER_pos
 	SMEMBER_type
 	SMEMBER_name
 	SMEMBER_receiver

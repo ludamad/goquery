@@ -24,6 +24,7 @@ type traverseContext struct {
 	*EventContext
 	globSym *GlobalSymbolContext
 	file    *FileSymbolContext
+	objStack *BytecodeObjectStack
 }
 
 func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
@@ -33,13 +34,14 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 	bcList := ev.Events[reflect.TypeOf(n).Elem()]
 	if bcList != nil {
 		for _, bc := range(bcList) {
-			bc.Exec(ev.globSym, ev.file, []interface{}{n})
+			ev.objStack.Stack[0] = makeGoalRef(n)
+			bc.Exec(ev.globSym, ev.file, ev.objStack)
 		}
 	}
 	return ev
 }
 
 func (ev *EventContext) Analyze(globSym *GlobalSymbolContext, fileSym *FileSymbolContext) {
-	tcontext := traverseContext{ev, globSym, fileSym}
+	tcontext := traverseContext{ev, globSym, fileSym, &BytecodeObjectStack{0, []goalRef{makeStrRef(nil)}}}
 	ast.Walk(&tcontext, fileSym.File)
 }

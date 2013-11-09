@@ -45,7 +45,7 @@ func findGoFilesAux(dir string, fnames []string) []string {
 	}
 	for _, file := range io {
 		fname := file.Name()
-		fullName := dir+"/"+fname
+		fullName := dir + "/" + fname
 		if len(fname) > 3 && strings.Index(fname, ".go") == len(fname)-3 {
 			fnames = append(fnames, fullName)
 		}
@@ -79,14 +79,14 @@ var _API luar.Map = luar.Map{
 	"BC_POPN":         BC_POPN,
 	"BC_CONCATN":      BC_CONCATN,
 	"BC_SAVE_TUPLE":   BC_SAVE_TUPLE,
-	"BC_LOAD_TUPLE":   BC_LOAD_TUPLE,
-	"BC_MAKE_TUPLE":   BC_MAKE_TUPLE,
 	"BC_JMP_FALSE":    BC_JMP_FALSE,
 	"BC_BIN_OP":       BC_BIN_OP,
-	"BC_UNARY_OP":       BC_UNARY_OP,
+	"BC_UNARY_OP":     BC_UNARY_OP,
 	"BC_JMP":          BC_JMP,
 	"BC_PRINTFN":      BC_PRINTFN,
 	"BC_SPRINTFN":     BC_SPRINTFN,
+	"NewObjectStack":  func() *BytecodeObjectStack { return &BytecodeObjectStack{0, []goalRef{}} },
+	"MakeGoalRef":     makeGoalRef,
 	"Bytecode":        func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
 	"TypeInfo": _TYPE_INFO,
@@ -100,9 +100,9 @@ var _API luar.Map = luar.Map{
 	"BIN_OP_OR":        BIN_OP_OR,
 	"BIN_OP_XOR":       BIN_OP_XOR,
 	"BIN_OP_INDEX":     BIN_OP_INDEX,
-	"BIN_OP_CONCAT":     BIN_OP_CONCAT,
+	"BIN_OP_CONCAT":    BIN_OP_CONCAT,
 	"BIN_OP_TYPECHECK": BIN_OP_TYPECHECK,
-	"BIN_OP_EQUAL": BIN_OP_EQUAL,
+	"BIN_OP_EQUAL":     BIN_OP_EQUAL,
 
 	"UNARY_OP_NOT": UNARY_OP_NOT,
 	"UNARY_OP_LEN": UNARY_OP_LEN,

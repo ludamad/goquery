@@ -3,8 +3,8 @@ package goal
 import "fmt"
 import "reflect"
 
-func (bc *BytecodeContext) sprintN(n int) string {
-	fmtString := bc.peek(n).Value.(string)
+func (bc *BytecodeExecContext) sprintN(n int) string {
+	fmtString := bc.Peek(n).Value.(string)
 	var str string
 	if n == 1 {
 		str = fmtString
@@ -17,14 +17,8 @@ func (bc *BytecodeContext) sprintN(n int) string {
 		}
 		str = fmt.Sprintf(fmtString, iargs...)
 	}
-	bc.popN(n)
+	bc.PopN(n)
 	return str
-}
-
-type BytecodeExecContext struct {
-	*BytecodeContext
-	*GlobalSymbolContext
-	*FileSymbolContext
 }
 
 func isTrueValue(val interface{}) bool {
@@ -61,60 +55,60 @@ func dumpStack(refs []goalRef) {
 	}
 }
 
-func (bc BytecodeExecContext) execOne() {
+func (bc *BytecodeExecContext) execOne() {
 	code := bc.Bytecodes[bc.Index]
 	bc.Index++
 	switch code.Code {
 	case BC_CONSTANT:
-		bc.push(bc.Constants[code.Bytes1to3()])
+		bc.Push(bc.Constants[code.Bytes1to3()])
 	case BC_SPECIAL_PUSH:
 		str := bc.resolveSpecialMember(code.Bytes1to2(), int(code.Val3))
-		bc.push(str)
+		bc.Push(str)
 	case BC_MEMBER_PUSH:
 		obj := bc.resolveObjectMember(code.Bytes1to2(), int(code.Val3))
-		bc.push(obj)
+		bc.Push(obj)
 	case BC_PUSH:
-		obj := bc.Stack[code.Bytes1to3()]
-		bc.push(obj)
+		obj := bc.Get(code.Bytes1to3())
+		bc.Push(obj)
 	case BC_PUSH_NIL:
-		bc.push(makeStrRef(nil))
+		bc.Push(makeStrRef(nil))
 	case BC_POPN:
-		bc.popN(code.Bytes1to3())
+		bc.PopN(code.Bytes1to3())
 	case BC_NEXT:
-		obj,idxObj,idx := bc.peek(2), bc.peek(1),0
+		obj,idxObj,idx := bc.Peek(2), bc.Peek(1),0
 		if idxObj.Value != nil {
 			idx = idxObj.Value.(int)
 		}
-		bc.popN(1) ; val := reflect.ValueOf(obj.Value)
+		bc.PopN(1) ; val := reflect.ValueOf(obj.Value)
 		if val.Type().Kind() != reflect.Slice {
 			panic("Can only iterate over slices!")
 		}
 		if val.Len() <= idx {
-			bc.popN(1)
+			bc.PopN(1)
 			bc.Index = code.Bytes1to3()
 		} else {
-			bc.push(makeIntRef(idx+1))
-			bc.push(makeGoalRef(val.Index(idx).Interface()))
+			bc.Push(makeIntRef(idx+1))
+			bc.Push(makeGoalRef(val.Index(idx).Interface()))
 		}
 	case BC_CONCATN:
 		bc.concatStrings(code.Bytes1to3())
 	case BC_SAVE_TUPLE:
 		n := int(code.Val3)
 		bc.SaveData(bc.DatabaseContext, code.Bytes1to2(), bc.copyStackObjects(n))
-		bc.popN(n)
+		bc.PopN(n)
 	case BC_JMP_FALSE:
-		if isTrueValue(bc.peek(1).Value) {
+		if isTrueValue(bc.Peek(1).Value) {
 			bc.Index = code.Bytes1to3()
 		}
-		bc.popN(1)
+		bc.PopN(1)
 	case BC_BIN_OP:
-		obj := bc.resolveBinOp(code.Bytes1to3(), bc.peek(2), bc.peek(1))
-		bc.popN(2);
-		bc.push(obj)
+		obj := bc.resolveBinOp(code.Bytes1to3(), bc.Peek(2), bc.Peek(1))
+		bc.PopN(2);
+		bc.Push(obj)
 	case BC_UNARY_OP:
-		obj := bc.resolveUnaryOp(code.Bytes1to3(), bc.peek(1))
-		bc.popN(1);
-		bc.push(obj)
+		obj := bc.resolveUnaryOp(code.Bytes1to3(), bc.Peek(1))
+		bc.PopN(1);
+		bc.Push(obj)
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
 	case BC_PRINTFN:
@@ -122,25 +116,16 @@ func (bc BytecodeExecContext) execOne() {
 		fmt.Print(bc.sprintN(n))
 	case BC_SPRINTFN:
 		n := code.Bytes1to3()
-		bc.push(makeStrRef(bc.sprintN(n)))
+		bc.Push(makeStrRef(bc.sprintN(n)))
 	default:
 		panic("Bad bytes!")
 	}
 }
 
-func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objects []interface{}) {
-	// Reset
-	bc.Index = 0
-	bc.popN(len(bc.Stack))
-
-	for _, obj := range objects {
-		bc.push(makeGoalRef(obj))
-	}
-
-	bcExecContext := BytecodeExecContext{bc, globSym, fileSym}
-	for bc.Index < len(bc.Bytecodes) {
+func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, objStack *BytecodeObjectStack) {
+	stackCopy := *objStack
+	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, &stackCopy, 0}
+	for bcExecContext.Index < len(bc.Bytecodes) {
 		bcExecContext.execOne()
 	}
-
-	bc.popN(len(objects))
 }

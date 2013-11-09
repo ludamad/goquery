@@ -4,29 +4,29 @@ import (
 	"bytes"
 )
 
-type LoopController interface {
-	Enter(bc *BytecodeContext) bool
-	Exit(bc *BytecodeContext)
-}
-
-type LoopContext struct {
-	Controller LoopController
-	StartIndex int
-}
-
 type BytecodeContext struct {
 	Bytecodes []Bytecode
-	Index     int // Instruction pointer
-	Stack     []goalRef
 	Constants []goalRef
-	LoopStack []LoopContext
+}
+
+type BytecodeObjectStack struct {
+	BaseIndex int
+	Stack     []goalRef
+}
+
+type BytecodeExecContext struct {
+	*BytecodeContext
+	*GlobalSymbolContext
+	*FileSymbolContext
+	*BytecodeObjectStack
+	Index     int // Instruction pointer
 }
 
 func NewBytecodeContext() *BytecodeContext {
-	return &BytecodeContext{[]Bytecode{}, 0, []goalRef{}, []goalRef{}, []LoopContext{}}
+	return &BytecodeContext{[]Bytecode{}, []goalRef{}}
 }
 
-func (bc *BytecodeContext) copyStackObjects(num int) []interface{} {
+func (bc *BytecodeExecContext) copyStackObjects(num int) []interface{} {
 	tuple := make([]interface{}, num)
 	for i, v := range bc.Stack[len(bc.Stack)-num:] {
 		tuple[i] = v.Value
@@ -34,14 +34,14 @@ func (bc *BytecodeContext) copyStackObjects(num int) []interface{} {
 	return tuple
 }
 
-func (bc *BytecodeContext) concatStrings(num int) {
+func (bc *BytecodeExecContext) concatStrings(num int) {
 	top := len(bc.Stack)
 	b := bytes.NewBufferString("")
 	for i := top - num; i < top; i++ {
 		b.WriteString(bc.Stack[i].Value.(string))
 	}
-	bc.popN(num)
-	bc.push(makeStrRef(b.String()))
+	bc.PopN(num)
+	bc.Push(makeStrRef(b.String()))
 }
 
 func (bc *BytecodeContext) PushConstant(constant interface{}) {
@@ -66,22 +66,18 @@ func (bc *BytecodeContext) SetBytecode(index int, code Bytecode) {
 	bc.Bytecodes[index] = code
 }
 
-func (bc *BytecodeContext) pushLoop(loop LoopContext) {
-	bc.LoopStack = append(bc.LoopStack, loop)
-}
-
-func (bc *BytecodeContext) popLoop() {
-	bc.LoopStack = bc.LoopStack[:len(bc.LoopStack)-1]
-}
-
-func (bc *BytecodeContext) push(obj goalRef) {
+func (bc *BytecodeObjectStack) Push(obj goalRef) {
 	bc.Stack = append(bc.Stack, obj)
 }
 
-func (bc *BytecodeContext) peek(idx int) goalRef {
+func (bc *BytecodeObjectStack) Get(idx int) goalRef {
+	return bc.Stack[bc.BaseIndex + idx]
+}
+
+func (bc *BytecodeObjectStack) Peek(idx int) goalRef {
 	return bc.Stack[len(bc.Stack)-idx]
 }
 
-func (bc *BytecodeContext) popN(num int) {
+func (bc *BytecodeObjectStack) PopN(num int) {
 	bc.Stack = bc.Stack[:len(bc.Stack)-num]
 }

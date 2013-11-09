@@ -12,7 +12,9 @@ do
     local unit = ForPairs "k" "v" (var "obj") (Printf("Loop got %d: %s", var "k", var "v"))
     local bc = goal.Compile(goal.CodeParse(unit), "obj")
     prettyBytecode(bc)
-    bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, {testLoopable})
+    local stack = goal.NewObjectStack()
+    stack.Push(goal.MakeGoalRef(testLoopable))
+    bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, stack)
 end
 
 -- Integration test
