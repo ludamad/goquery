@@ -81,6 +81,7 @@ var _API luar.Map = luar.Map{
 	"BC_SAVE_TUPLE":   BC_SAVE_TUPLE,
 	"BC_JMP_FALSE":    BC_JMP_FALSE,
 	"BC_BIN_OP":       BC_BIN_OP,
+	"ColorPrint" : colorPrint,
 	"BC_UNARY_OP":     BC_UNARY_OP,
 	"BC_JMP":          BC_JMP,
 	"BC_PRINTFN":      BC_PRINTFN,
@@ -137,7 +138,7 @@ func errorReportingCall(L *lua.State) bool {
 			fmt.Print(colorify("An error has occurred!\n", "31;1"))
 			fmt.Print(colorify(r, "31"))
 			errS := r.(*lua.LuaError).Error()
-			if strings.Contains(errS, "runtime error") || strings.Contains(errS, "interface conversion") ||
+			if strings.Contains(errS, "error") || strings.Contains(errS, "interface conversion") ||
 				strings.Contains(errS, "over slices!") || strings.Contains(errS, "error reflect:") {
 				fmt.Printf("\nFull Go Stack:\n%s", colorify(debug.Stack(), "35;1"))
 			}

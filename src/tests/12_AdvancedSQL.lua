@@ -43,29 +43,38 @@ EventCaseType (
 )
 Event (TypeSpec "n") (Store "type_declarations" (name "n", location "n"))
 
-local t = goal.CurrentTime()
-Analyze (Files(FindFiles "src/go-future/types"))
-print(goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
 
-local t = goal.CurrentTime()
-
-local results = DataQuery [[
-select iface, tname from
-    (select i.interface as iface, m.receiver_type AS rtype, count(*) AS satisfied from 
-        methods m join interface_reqs i on m.name=i.name and m.type=i.type
-        group by i.interface, m.receiver_type
-    ) 
-   join
-    (select t.name as tname, embedded_type as etype from 
-        type_declarations t left join type_method_inherits tmi 
-        on t.name=tmi.type
-    )
-   where rtype in ("*" || etype, etype, tname, "*" || tname)
-   group by iface, tname
-   having sum(satisfied) == (select count(*) from interface_reqs iq where iq.interface = iface)
-]]
-
-for result in values(results) do
-    print("Type '" .. result.tname .. "' satisfies '" .. result.iface .. "'")
+local function dumpSatisfications(files)
+    local t = goal.CurrentTime()
+    Analyze (Files(files))
+    print("Analyze took " .. goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
+    
+    local t = goal.CurrentTime()
+    
+    local results = DataQuery [[
+    select iface, tname from
+        (select i.interface as iface, m.receiver_type AS rtype, count(*) AS satisfied from 
+            methods m join interface_reqs i on m.name=i.name and m.type=i.type
+            group by i.interface, m.receiver_type
+        ) 
+       join
+        (select t.name as tname, embedded_type as etype from 
+            type_declarations t left join type_method_inherits tmi 
+            on t.name=tmi.type
+        )
+       where rtype in ("*" || etype, etype, tname, "*" || tname)
+       group by iface, tname
+       having sum(satisfied) == (select count(*) from interface_reqs iq where iq.interface = iface)
+    ]]
+    
+    for result in values(results) do
+        print("Type '" .. result.tname .. "' satisfies '" .. result.iface .. "'")
+    end
+    print("Query took " .. goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
 end
-print(goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
+
+local files = FindFiles "src/tests/interface"
+for file in values(files) do
+    goal.ColorPrint("1;32", "Interface satisfactions for "..file..":\n")
+    dumpSatisfications {file}
+end

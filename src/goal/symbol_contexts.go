@@ -34,7 +34,15 @@ func (context *GlobalSymbolContext) ParseAll(files []string) {
 	}
 }
 
+func (context *GlobalSymbolContext) ClearParseResults() {
+	context.DropAllData()
+	context.FileSet = token.NewFileSet()
+	context.NameToAstFile = map[string]*ast.File{}
+	context.ExprToType = map[ast.Expr]types.Type{}
+}
+
 func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
+	context.ClearParseResults()
 	context.ParseAll(files)
 	context.InferTypes()
 
@@ -46,8 +54,7 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 func (context *GlobalSymbolContext) Parse(filename string, altSource interface{}) {
 	file, err := parser.ParseFile(context.FileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
 	if err != nil {
-		fmt.Println("Problem in ParseFile:")
-		panic(err)
+		fmt.Println("Problem in ParseFile:\n", err)
 	}
 	context.NameToAstFile[filename] = file
 }

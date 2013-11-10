@@ -78,6 +78,17 @@ func (context *DatabaseContext) Commit() {
 		context.insertTransaction = nil
 	}
 }
+func (context *DataContext) DropAllData() {
+	context.Commit()
+	for _, s := range context.Schemas {
+		sqlCheckName(s.Name)
+		_, err := context.DB.Exec("drop table " + s.Name)
+		if err != nil {
+			panic(err)
+		}
+		s.CreateTable(context.DatabaseContext)
+	}
+}
 
 // Global symbol context functions:
 // Run a query. Return the column names, and the tuple results.
