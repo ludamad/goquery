@@ -5,6 +5,11 @@
 --    
 --) 
 --
+--Getter "N.location" (
+--    Return(Sprintf("%s:%d:%d", Pos.Filename "N"))
+--)
+
+--
 --
 --    switch node := n.Value.(type) {
 --    case *ast.FuncDecl:

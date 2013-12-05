@@ -415,6 +415,9 @@ function SNodes.Store(C, schemaName, values)
         C.Compile12_3("BC_SAVE_TUPLE", schema.Id, schema.FieldLength())
     end
 end
+function Return(value) return function(...)
+    return simpleNode("Return")
+end end
 function Store(schemaName) return function(...)
     return simpleNode("Store", schemaName, goal.ExpressionsParse(...))
 end end

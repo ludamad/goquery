@@ -33,6 +33,7 @@ const (
 	BC_SPECIAL_PUSH // Takes <object> <special member name: 'name', 'location' or 'type'>
 	BC_POPN // Takes <number>, pops that many objects from the stack.
 	BC_CONCATN
+	BC_RETURN // Signals that a value was returned (the value at the top of the stack)
 	BC_NEXT // Takes <code index>, expects [object, key], leaves [object, next key, next value] on stack.
 	// If there is no next key, pops [object, key] and jumps to the code index.
 	BC_SAVE_TUPLE // Takes <tuple kind>, <tuple size>, pops tuple data from the stack

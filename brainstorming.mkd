@@ -1,0 +1,52 @@
+Too many new ideas. I had to make something well-formatted.
+ 
+I'm imagining something like incremental XPath.
+
+Eg, imagine a session for a terminal program called '**goal**' with a well-formed Go path, etc:
+
+##Motivating Example
+
+**Variant 1:**  
+**\# *goal* **    
+**load** my_package  
+**watch** call**\*** **(**ref ?.foo**)** | name **as** foo_caller
+
+Here we load a package from the Go path and watch all functions that, by a series of 0 or more calls, reference some 'foo' (with perhaps variations on 'call' as well, but the default meaning should be normal static callgraph.)
+
+Through 'stat' calls, or git-integration, **goal** finds packages with modifications either on the fly, or when a commit/event happens.
+
+**Variant 2:**  
+**\# *goal* **    
+**load** my_package  
+**set** foo ?.foo  
+**watch** call**\*** **(**ref foo**)** | name **as** foo_caller
+
+This demonstrates that '?.foo' resolves once for the expression, as a wild-card package with element 'foo'. Thus the type of element that 'foo' is could vastly alter the 'shape' of the analysis routine behind the query.   
+  
+For name resolution, root level 'variables' could first resolve to values that have been 'set', and then to packages.
+
+**Variant 3:**  
+**\# *goal* **    
+**expr** fooQ call**\*** **(**ref ?.foo**)**  
+**load** my_package  
+**watch** fooQ | name **as** foo_caller
+
+This demonstrates sub-expressions can be stored (simplest: just store as string, possibly with text-sub), and can reference elements not loaded yet (?.foo resolves within 'my_package').
+
+##Motivated Generalization
+
+We want to resolve analysis queries **efficiently and incremently**.  
+We recursively define a query function with respect to node *N* as 'Q(Qc[], D, F)'  
+&nbsp;**where**  
+&nbsp;&nbsp;&nbsp;**Qc[]** is the result of sub-queries, resolved with respect to a certain node *M*. *M* **may** but *usually wont* equal *N*. *(encapsulates dynamic dependency)*  
+&nbsp;&nbsp;&nbsp;**D** is the data immediately reachable by node *N* *(encapsulates static dependency, language-elements)*  
+&nbsp;&nbsp;&nbsp;**F** transforms data and sub-query results *(encapsulates semantic rules)*  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q(Qc, D, F) = **F**(**D**, **Qc**)  
+
+Our dependencies are determined by analyzing the relationship between **Q**, **D**, and **Qc**.  
+
+In our specific case, '**goal**' would determine that the query in this example reqiures a function declaration event, and actually *generate Lua source code for the GoAL DSL, which is then generated to byte-code 'for free'* **(two-phase code generation!)**. Thus this interactive interface could trigger specialized analysis routines, automated DB management, etc.
+
+Thus for resolution, the query is phrased in terms like above, often resolving in a recursive definition. An initial pass is taken over each node; the data immediately reachable by the node become's **F**'s first argument. Let **Fd**(**Qc[]**) = **F**(**D**, **Qc[]**), given **D** at node *N*. We store this partially resolved query in a map we label **QParts**. We store all resolved queries in a map labelled **QResolved**; any queries in QParts that rely on **0 sub-queries** are thus in **QResolved** after the first pass.
+
+We call these **leaf sub-queries**. After this first pass we then recursively resolve the query, having gathered all the necessary data.

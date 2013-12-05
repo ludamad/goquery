@@ -55,7 +55,7 @@ func dumpStack(refs []goalRef) {
 	}
 }
 
-func (bc *BytecodeExecContext) execOne() {
+func (bc *BytecodeExecContext) execOne() bool {
 	code := bc.Bytecodes[bc.Index]
 	bc.Index++
 	switch code.Code {
@@ -111,11 +111,11 @@ func (bc *BytecodeExecContext) execOne() {
 		bc.Push(obj)
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
-//	case BC_CALLN:
-//		n := code.Bytes1to3()
-//		subroutine := bc.Peek(1).Value.(*BytecodeContext)
-//		bc.PopN(1) // Pop the bytecode context
-//		bc.call(subroutine, n, true)
+	case BC_CALLN:
+		n := code.Bytes1to3()
+		subroutine := bc.Peek(1 + n).Value.(*BytecodeContext)
+		bc.call(subroutine, n)
+		bc.PopN(n + 1) // Pop the arguments and the bytecode context
 	case BC_PRINTFN:
 		n := code.Bytes1to3()
 		fmt.Print(bc.sprintN(n))
@@ -125,16 +125,29 @@ func (bc *BytecodeExecContext) execOne() {
 	default:
 		panic("Bad bytes!")
 	}
+	return false // Do not return a value
 }
 
-//func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int, pushReturned bool) {
-//	stackCopy := *bc.BytecodeObjectStack
-//	stackCopy.BaseIndex = len(bc.Stack) - nargs
-//}
+func (bc *BytecodeExecContext) exec() goalRef {
+	for bc.Index < len(bc.Bytecodes) {
+		if bc.execOne() {
+			return bc.Peek(1)
+		}
+	}
+	return makeStrRef(nil)
+}
+
+// Call a subroutine, and return a goalRef depending on the return value.
+func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goalRef {
+	oldLen := len(*bc.goalStack)
+
+	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, len(*bc.goalStack) - nargs, 0}
+	retVal := bcCopy.exec()
+	bc.PopN(len(*bcCopy.goalStack) - oldLen)
+	return retVal
+}
 
 func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
 	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, stack, 0, 0}
-	for bcExecContext.Index < len(bc.Bytecodes) {
-		bcExecContext.execOne()
-	}
+	bcExecContext.exec()
 }
