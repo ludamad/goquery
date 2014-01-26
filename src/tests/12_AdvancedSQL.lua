@@ -50,7 +50,7 @@ local function dumpSatisfications(files)
     print("Analyze took " .. goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
     
     local t = goal.CurrentTime()
-    
+
     local results = DataQuery [[
     select iface, tname from
         (select i.interface as iface, m.receiver_type AS rtype, count(*) AS satisfied from 

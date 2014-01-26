@@ -4,7 +4,7 @@
 local type = _G.type -- DSL redefines 'type'
 typeof = type -- Alias
 -- Keep this around for now, for convenience. Remove for 1.0.
-dofile "src/tests/util.lua"
+dofile "goal/util.lua"
 -- Simple type system:
 function class(--[[Optional]] name)
     local type = {name = name}

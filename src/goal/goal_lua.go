@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aarzilli/golua/lua"
 	"github.com/stevedonovan/luar"
+	"github.com/shavac/readline"
 	"io/ioutil"
 	"runtime/debug"
 	"strings"
@@ -16,8 +17,7 @@ func colorify(str interface{}, code string) interface{} {
 	if !_USE_COLOR {
 		return str
 	}
-	s := string([]byte{27})
-	return fmt.Sprintf("%s[%sm%s%s[0m", s, code, str, s)
+	return fmt.Sprintf("\x1b[%sm%s\x1b[0m", code, str)
 }
 
 func colorPrintf(code string, fmtStr string, args ...interface{}) {
@@ -62,6 +62,16 @@ func findGoFiles(dir string) []string {
 	return fnames
 }
 
+// Slight wrapper to handle pointer boxing/unboxing
+func readLineWrap(prompt string) interface{} {
+ 	result := readline.ReadLine(&prompt)
+	if result == nil {
+		return nil
+	} else {
+		return *result
+	}
+}
+
 var _API luar.Map = luar.Map{
 	// See walker.go for details:
 	"NewBytecodeContext": NewBytecodeContext,
@@ -94,6 +104,8 @@ var _API luar.Map = luar.Map{
 		return gs
 	},
 	"MakeGoalRef": makeGoalRef,
+	"ReadLine": readLineWrap,
+	"AddHistory": readline.AddHistory,
 	"Bytecode":    func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
 	"TypeInfo": _TYPE_INFO,
@@ -120,11 +132,11 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	luar.Register(L, namespace, _API)
 	luar.Register(L, "", luar.Map{"ColorPrint": colorPrint})
 	//	LuaDoString(L, _PRELUDE_SOURCE)
-	ok := LuaDoFile(L, "src/goal/prelude.lua")
+	ok := LuaDoFile(L, "goal/prelude.lua")
 	if !ok {
 		panic("Prelude is damaged.")
 	}
-	ok = LuaDoFile(L, "src/goal/macros.lua")
+	ok = LuaDoFile(L, "goal/macros.lua")
 	if !ok {
 		panic("Macro library is damaged.")
 	}
