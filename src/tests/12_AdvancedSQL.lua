@@ -73,7 +73,7 @@ local function dumpSatisfications(files)
     print("Query took " .. goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
 end
 
-local files = FindFiles "src/tests/interface"
+local files = FindFiles "tests/interface"
 for file in values(files) do
     goal.ColorPrint("1;32", "Interface satisfactions for "..file..":\n")
     dumpSatisfications {file}

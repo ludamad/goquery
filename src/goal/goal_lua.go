@@ -105,7 +105,7 @@ var _API luar.Map = luar.Map{
 	},
 	"MakeGoalRef": makeGoalRef,
 	"ReadLine": readLineWrap,
-	"AddHistory": readline.AddHistory,
+	"ReadLineAddHistory": readline.AddHistory,
 	"Bytecode":    func(b1, b2, b3, b4 byte) Bytecode { return Bytecode{b1, b2, b3, b4} },
 
 	"TypeInfo": _TYPE_INFO,
@@ -131,6 +131,7 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	L := luar.Init()
 	luar.Register(L, namespace, _API)
 	luar.Register(L, "", luar.Map{"ColorPrint": colorPrint})
+	luar.Register(L, "", luar.Map{"Colorify": colorify})
 	//	LuaDoString(L, _PRELUDE_SOURCE)
 	ok := LuaDoFile(L, "goal/prelude.lua")
 	if !ok {

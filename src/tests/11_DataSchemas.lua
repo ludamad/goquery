@@ -32,7 +32,7 @@ EventCaseType (
 
 Event(TypeSpec "n") (Store "types" (name "n", location "n"))
 
-Analyze (Files "src/tests/interface.go")
+Analyze (Files "tests/interface.go")
 
 local interface_types='(SELECT DISTINCT interface FROM interface_reqs)'
 local subexpr1='(SELECT COUNT(*) FROM interface_reqs INNER JOIN methods USING (name, type) WHERE receiver_type = T.name and interface = I.interface)'

@@ -6,7 +6,7 @@ Event(TypeSpec "n") (
         Print "MapType\n"
     )
 )
-Analyze(Files "src/tests/typesExample.go")
+Analyze(Files "tests/typesExample.go")
 
 Event(TypeSpec "n") (
     CaseType(Type "n")(InterfaceType)(
@@ -16,7 +16,7 @@ Event(TypeSpec "n") (
     )
 )
 
-Analyze(Files "src/tests/typesExample.go")
+Analyze(Files "tests/typesExample.go")
 
 EventCaseType (
     TypeSpec "n", Type "n"
@@ -25,4 +25,4 @@ EventCaseType (
 ) (MapType) (
     Print "MapType\n"
 )
-Analyze(Files "src/tests/typesExample.go")
+Analyze(Files "tests/typesExample.go")

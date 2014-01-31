@@ -24,4 +24,4 @@ EventCaseType (
         Printf("Interface %s needs method %s\n", name "n", type "m")
     )
 )
-Analyze(Files "src/tests/interface.go")
+Analyze(Files "tests/interface.go")

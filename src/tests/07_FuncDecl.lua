@@ -4,7 +4,7 @@ Event(FuncDecl "f") (
 )
 
 Analyze (
-    Files "src/tests/sample.go"
+    Files "tests/sample.go"
 )
 
 -- Simple conditional
@@ -13,7 +13,7 @@ Event(FuncDecl "f") (
 )
 
 Analyze (
-    Files "src/tests/sample.go"
+    Files "tests/sample.go"
 )
 
 Event(FuncDecl "f") (
@@ -25,5 +25,5 @@ Event(FuncDecl "f") (
 )
 
 Analyze (
-    Files "src/tests/sample.go"
+    Files "tests/sample.go"
 )

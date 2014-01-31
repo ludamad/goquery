@@ -1,5 +1,3 @@
-dofile "src/tests/util.lua"
-
 local type = typeof -- DSL redefines 'type'
 
 local function make(parent, chain)

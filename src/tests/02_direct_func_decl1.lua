@@ -9,5 +9,5 @@ goal.PushEvent("FuncDecl", goal.SimpleBytecodeContext(
 ))
 
 Analyze (
-    Files "src/tests/sample.go"
+    Files "tests/sample.go"
 )
