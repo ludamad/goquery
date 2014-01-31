@@ -38,7 +38,7 @@ func colorPrint(code string, args ...interface{}) {
 	}
 }
 
-func findGoFilesAux(dir string, fnames []string) []string {
+func findFilesAux(extension string, dir string, fnames []string) []string {
 	io, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
@@ -46,11 +46,11 @@ func findGoFilesAux(dir string, fnames []string) []string {
 	for _, file := range io {
 		fname := file.Name()
 		fullName := dir + "/" + fname
-		if len(fname) > 3 && strings.Index(fname, ".go") == len(fname)-3 {
+		if len(fname) > 3 && strings.Index(fname, extension) == len(fname)-3 {
 			fnames = append(fnames, fullName)
 		}
 		if file.IsDir() {
-			fnames = findGoFilesAux(fullName, fnames)
+			fnames = findFilesAux(extension, fullName, fnames)
 		}
 	}
 	return fnames
@@ -58,7 +58,13 @@ func findGoFilesAux(dir string, fnames []string) []string {
 
 func findGoFiles(dir string) []string {
 	fnames := []string{}
-	fnames = findGoFilesAux(dir, fnames)
+	fnames = findFilesAux(".go", dir, fnames)
+	return fnames
+}
+
+func findYAMLFiles(dir string) []string {
+	fnames := []string{}
+	fnames = findFilesAux(".yaml", dir, fnames)
 	return fnames
 }
 
@@ -77,6 +83,7 @@ var _API luar.Map = luar.Map{
 	"NewBytecodeContext": NewBytecodeContext,
 	"NewGlobalContext":   NewGlobalContext,
 	"FindGoFiles":        findGoFiles,
+	"FindYAMLFiles":        findYAMLFiles,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
 	"CurrentTime":     time.Now,

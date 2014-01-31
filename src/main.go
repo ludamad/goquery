@@ -13,7 +13,7 @@ func main() {
 
 	flag.Parse()
 
-	if false {
+	if true {
 		failed, ran := goal.RunTests("tests", *testToRun)
 
 		if failed != 0 {

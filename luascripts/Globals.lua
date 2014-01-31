@@ -208,6 +208,14 @@ function prettyBytecode(bc)
     end
 end
 
+function file_as_string(name)
+    local f = io.open(name,"r")
+    if f == nil then return nil end
+    local contents = f:read("*all")
+    f:close()
+    return contents
+end
+
 function newtype(args)
     local get, set = {}, {}
     local parent = args and args.parent

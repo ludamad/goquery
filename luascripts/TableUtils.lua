@@ -19,6 +19,15 @@ local function metacopy(t1, t2)
     return false
 end
 
+function table.clear(t)
+    for i=#t,1 do
+        t[i] = nil
+    end
+    for k,v in pairs(t) do
+        t[k] = nil
+    end
+end
+
 -- Copies 'plain-old arrays' deeply.
 function table.deep_array_copy(t1, t2)
     for i=1,#t1 do 
