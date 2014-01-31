@@ -132,15 +132,6 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	luar.Register(L, namespace, _API)
 	luar.Register(L, "", luar.Map{"ColorPrint": colorPrint})
 	luar.Register(L, "", luar.Map{"Colorify": colorify})
-	//	LuaDoString(L, _PRELUDE_SOURCE)
-	ok := LuaDoFile(L, "goal/prelude.lua")
-	if !ok {
-		panic("Prelude is damaged.")
-	}
-	ok = LuaDoFile(L, "goal/macros.lua")
-	if !ok {
-		panic("Macro library is damaged.")
-	}
 	return L
 }
 
