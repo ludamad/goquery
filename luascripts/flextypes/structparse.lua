@@ -17,7 +17,7 @@ end
 do -- Restrict scope of lazy import
     local StructType -- Lazy imported
     function M.define_field(T, name, typename, is_embedded, initializer)
-        StructType = StructType or import ".StructType" -- Lazy import
+        StructType = StructType or require "flextypes.StructType" -- Lazy import
 
         assert(not T.name_to_field[name], "Name '" .. name .. "' already used in type!")
         local type = T:lookup_type(typename)

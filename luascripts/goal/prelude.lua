@@ -4,7 +4,7 @@
 local type = _G.type -- DSL redefines 'type'
 typeof = type -- Alias
 -- Keep this around for now, for convenience. Remove for 1.0.
-require "util"
+require "Globals"
 -- Simple type system:
 function class(--[[Optional]] name)
     local type = {name = name}
@@ -41,23 +41,7 @@ local function pack(...)
     end
     return t
 end
--- Lua table API extensions:
-table.next, _ = pairs {}
-function table.key_list(t)
-    local keys = {}
-    for k, _ in pairs(t) do append(keys, k) end
-    return keys
-end
-function table.index_of(t, val)
-    for k,v in pairs(t) do if v == val then return k end end
-    return nil
-end
-function table.merge(t1, t2) for k,v in pairs(t1) do t2[k] = v end end
--- Lua string API extension:
-function string:split(sep) local t = {} ;self:gsub(("([^%s]+)"):format(sep), function(s) append(t, s) end) ; return t end
-function values(table)
-    local idx = 1 ; return function() local val = table[idx] ; idx = idx + 1 return val end
-end
+
 function appendAll(...)
     local tabs, ret = pack(...), {}
     for tab in values(tabs) do for v in values(tab) do append(ret, v) end end

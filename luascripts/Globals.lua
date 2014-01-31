@@ -1,4 +1,61 @@
 local type = _G.type -- DSL redefines 'type'
+-- Set to a metatable that does not allow nil accesses
+function nilprotect(t)
+    return setmetatable(t, nilprotect_meta)
+end
+
+function values(table)
+    local idx = 1
+    return function()
+        local val = table[idx]
+        idx = idx + 1
+        return val
+    end
+end
+
+-- Like C printf, but always prints new line
+function printf(fmt, ...) print(fmt:format(...)) end
+function errorf(fmt, ...) error(fmt:format(...)) end
+function assertf(cond, fmt, ...) return assert(cond, fmt:format(...)) end
+-- Convenient handle for very useful function:
+fmt = string.format
+
+-- Lua table API extensions:
+append = table.insert
+table.next, _ = pairs {}
+function table.key_list(t)
+    local keys = {}
+    for k, _ in pairs(t) do append(keys, k) end
+    return keys
+end
+function table.index_of(t, val)
+    for k,v in pairs(t) do if v == val then return k end end
+    return nil
+end
+function table.merge(t1, t2) for k,v in pairs(t1) do t2[k] = v end end
+
+-- Lua string API extension:
+function string:split(sep) 
+    local t = {}
+    self:gsub(("([^%s]+)"):format(sep), 
+        function(s) append(t, s) end
+    )
+    return t 
+end
+function string:interpolate(table)
+    return (self:gsub('($%b{})', function(w) return table[w:sub(3, -2)] or w end))
+end
+function string:join(parts_table)
+    return table.concat(parts_table, self)
+end
+function string:trim()
+  return self:gsub("^%s*(.-)%s*$", "%1")
+end
+function string:trimsplit(s)
+    local parts = self:split(s)
+    for i,p in ipairs(parts) do parts[i] = p:trim() end
+    return parts
+end
 
 --- Get a  human-readable string from a lua value. The resulting value is generally valid lua.
 -- Note that the paramaters should typically not used directly, except for perhaps 'packed'.

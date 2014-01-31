@@ -1,7 +1,7 @@
-local structparse = import ".structparse"
-local structgen = import ".structgen"
+local structparse = require "flextypes.structparse"
+local structgen = require "flextypes.structgen"
 
-local FieldTypes = import ".FieldTypes"
+local FieldTypes = require "flextypes.FieldTypes"
 
 local StructType = newtype { parent = FieldTypes.BaseType }
 
