@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  * 
  * Portions of this software were inspired by Perl's YAML::LibYAML module by 
- * Ingy dï¿½t Net <ingy@cpan.org>
+ * Ingy döt Net <ingy@cpan.org>
  * 
  */
 
@@ -146,75 +146,34 @@ static void handle_anchor(struct lua_yaml_loader *loader) {
    lua_rawset(loader->L, loader->anchortable_index);
 }
 
-static void store_pos_info(struct lua_yaml_loader *loader, int map_index) {
-    yaml_mark_t* mark = &loader->event.start_mark;
-    lua_pushvalue(loader->L, map_index);
-    lua_pushnumber(loader->L, mark->line);
-    lua_setfield(loader->L, -2, "__line");
-    lua_pushnumber(loader->L, mark->column);
-    lua_setfield(loader->L, -2, "__column");
-    lua_pop(loader->L, 1);
-}
-static void store_metainfo(struct lua_yaml_loader *loader, int map_index, const char* type) {
-	char* tag;
-	// XXX: Patched in for Lanarts
-	tag = (char*) loader->event.data.scalar.tag;
-	lua_pushvalue(loader->L, map_index);
-	if (tag != NULL || type == "map") {
-		lua_pushstring(loader->L, type);
-		lua_setfield(loader->L, -2, "__type");
-  	    store_pos_info(loader, -2);
-	}
-	if (tag != NULL) {
-		lua_pushstring(loader->L, tag + 1 /*avoid '!'*/);
-		lua_setfield(loader->L, -2, "__tag");
-	}
-	lua_pop(loader->L, 1);
-}
 static void load_map(struct lua_yaml_loader *loader) {
-   int i, map;
    lua_newtable(loader->L);
-   map = lua_gettop(loader->L);
-   // XXX: Patched in for Lanarts
-   store_metainfo(loader, map, "map");
-
    if (loader->mapmt_index != 0) {
       lua_pushvalue(loader->L, loader->mapmt_index);
       lua_setmetatable(loader->L, -2);
    }
 
    handle_anchor(loader);
-   for (i=1;;i++) {
-      int r, key, val;
+   while (1) {
+      int r;
       /* load key */
       if (load_node(loader) == 0 || loader->error)
          return;
-      key = lua_gettop(loader->L);
+
       /* load value */
       r = load_node(loader);
       if (loader->error)
          return;
-      val = lua_gettop(loader->L);
       if (r != 1)
          RETURN_ERRMSG(loader, "unanticipated END event");
-      // Even if its a map, we want a list of fields (Lanarts-specific!)
-      lua_newtable(loader->L); // Create {_,_}
-      lua_pushvalue(loader->L, key);
-      lua_rawseti(loader->L, -2, 1); // Set {key,_}
-      lua_pushvalue(loader->L, val);
-      lua_rawseti(loader->L, -2, 2); // Set {_,val}
-      lua_rawseti(loader->L, map, i); // Place into map[i]
-      lua_pop(loader->L, 2); // Pop key, val
+      lua_rawset(loader->L, -3);
    }
 }
 
 static void load_sequence(struct lua_yaml_loader *loader) {
    int index = 1;
 
-
    lua_newtable(loader->L);
-   // XXX: Patched in for Lanarts
-   store_metainfo(loader, -1, "list");
    if (loader->sequencemt_index != 0) {
       lua_pushvalue(loader->L, loader->sequencemt_index);
       lua_setmetatable(loader->L, -2);
@@ -249,14 +208,7 @@ static void load_scalar(struct lua_yaml_loader *loader) {
          frombase64(loader->L, (const unsigned char *)str, length);
          return;
       }
-   } else if (tag){
-	  // XXX: Patched in for Lanarts
-	  lua_newtable(loader->L);
-	  store_metainfo(loader, -1, "str");
-	  lua_pushlstring(loader->L, str, length);
-	  lua_rawseti(loader->L, -2, 1);
-	  return;
-  }
+   }
 
    if (loader->event.data.scalar.style == YAML_PLAIN_SCALAR_STYLE) {
       if (!strcmp(str, "~")) {
@@ -362,7 +314,7 @@ static void load(struct lua_yaml_loader *loader) {
       if (loader->event.type != YAML_DOCUMENT_END_EVENT)
          RETURN_ERRMSG(loader, "expected DOCUMENT_END_EVENT");
 
-      /* reset anchor table */
+      /* reset anchor table */ 
       lua_newtable(loader->L);
       lua_replace(loader->L, loader->anchortable_index);
    }
@@ -564,7 +516,7 @@ static int dump_array(struct lua_yaml_dumper *dumper, int style) {
 
 static int figure_style_type(lua_State *L) {
    int style = LUAYAML_ANY_STYLE;
-
+   
    if (lua_getmetatable(L, -1)) {
       /* has metatable, look for _yaml_style key */
       lua_pushliteral(L, "_yaml_style");
@@ -660,7 +612,7 @@ static void dump_document(struct lua_yaml_dumper *dumper) {
    yaml_emitter_emit(&dumper->emitter, &ev);
 }
 
-static int append_output(void *arg, unsigned char *buf, size_t len) {
+static int append_output(void *arg, unsigned char *buf, unsigned int len) {
    struct lua_yaml_dumper *dumper = (struct lua_yaml_dumper *)arg;
    luaL_addlstring(&dumper->yamlbuf, (char *)buf, len);
    return 1;
@@ -797,19 +749,6 @@ static int l_null(lua_State *L) {
    lua_replace(L, -2);
 
    return 1;
-}
-
-// XXX: Patched in for Lanarts!
-int luayaml_module(lua_State *L) {
-	lua_newtable(L);
-#define SET(k, f) \
-	lua_pushcclosure(L, f, 0); \
-	lua_setfield(L, -2, k)
-	SET("load", l_load);
-	SET("dump", l_dump);
-	SET("configure", l_config);
-	SET("null", l_null);
-	return 1;
 }
 
 LUALIB_API int luaopen_yaml(lua_State *L) {

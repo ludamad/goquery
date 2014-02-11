@@ -7,13 +7,14 @@ import (
 	"os"
 )
 
+
 func main() {
-//	runTests := flag.Bool("tests", false, "whether to run tests (only)")
+ 	runTests := flag.Bool("tests", false, "whether to run tests (only)")
 	testToRun := flag.Int("test", -1, "the test number to run")
 
 	flag.Parse()
 
-	if true {
+	if *runTests {
 		failed, ran := goal.RunTests("tests", *testToRun)
 
 		if failed != 0 {
