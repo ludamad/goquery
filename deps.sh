@@ -1,5 +1,6 @@
 set -e
-for cmd in 'install' ; do
+sudo yum install readline-devel
+for cmd in 'get' 'install' ; do
     go $cmd github.com/mattn/go-sqlite3
     go $cmd github.com/stevedonovan/luar
     #NOTE: I had to jiggle golua manually to link to LuaJIT. YMMV.
