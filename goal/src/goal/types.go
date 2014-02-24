@@ -6,7 +6,8 @@ import (
 
 	"fmt"
 	"go/ast"
-//	"time"
+	"os"
+	//	"time"
 
 	"go-future/types"
 )
@@ -70,7 +71,7 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 }
 
 func (context *GlobalSymbolContext) InferTypes() {
-//	now := time.Now()
+	//	now := time.Now()
 	ctxt := types.Default
 	ctxt.Error = func(err error) {
 		fmt.Println("A problem occurred in InferTypes:\n", err)
@@ -78,8 +79,8 @@ func (context *GlobalSymbolContext) InferTypes() {
 	ctxt.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
 		context.ExprToType[x] = typ
 	}
-	ctxt.Check(context.FileSet, context.FileList()) 
-//	fmt.Printf("InferTypes took %.2fms.\n", float64(time.Now().Sub(now).Nanoseconds())/1000.0/1000.0)
+	ctxt.Check(context.FileSet, context.FileList())
+	//	fmt.Printf("InferTypes took %.2fms.\n", float64(time.Now().Sub(now).Nanoseconds())/1000.0/1000.0)
 }
 
 func (context *GlobalSymbolContext) LookupType(expr ast.Expr) types.Type {

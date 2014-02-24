@@ -1,6 +1,6 @@
 require "goal"
 
-DataSet "test.db"
+DataSet("sqlite3", "04_direct_tuple_store.db")
 
 goal.DefineData("MyTable", {"Name", "Location"}, {"Name", "Location"})
 goal.SimpleRun({
@@ -20,7 +20,7 @@ end
 print("\n-------------------")
 for i, result in ipairs(results) do
     for j, subresult in ipairs(result) do
-        io.write(subresult .. '\t')
+        io.write(goal.BytesToString(subresult) .. '\t')
     end
     print()
 end

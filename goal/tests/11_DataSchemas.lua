@@ -1,6 +1,6 @@
 require "goal"
 
-DataSet "11_DataSchemas.db"
+DataSet("sqlite3", "11_DataSchemas.db")
 
 Data "methods" (
     Key "name", Key "type", Key "receiver_type", "location"
@@ -47,6 +47,6 @@ local queryTemplate = ([[
 local results = DataQuery(queryTemplate:format(interface_types, subexpr1, subexpr2))
 
 for result in values(results) do
-    print("Type '" .. result.name .. "' satisfies '" .. result.iname .. "'")
+    print("Type '" .. goal.BytesToString(result.name) .. "' satisfies '" .. goal.BytesToString(result.iname) .. "'")
 end
 
