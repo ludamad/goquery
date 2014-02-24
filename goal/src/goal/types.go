@@ -6,8 +6,6 @@ import (
 
 	"fmt"
 	"go/ast"
-	"os"
-	//	"time"
 
 	"go-future/types"
 )
