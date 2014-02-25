@@ -11,6 +11,8 @@ import (
 	"go/token"
 	"sort"
 	"strconv"
+        "fmt"
+        "reflect"
 
 	"code.google.com/p/go.tools/go/exact"
 )
@@ -95,6 +97,7 @@ func (check *checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 		obj.used = true
 		check.addDeclDep(obj)
 		x.mode = value
+                fmt.Println("GOT FUNCTION")
 
 	case *Builtin:
 		obj.used = true // for built-ins defined by package unsafe
@@ -129,6 +132,7 @@ func (check *checker) typExpr(e ast.Expr, def *Named, path []*TypeName) (T Type)
 	}
 
 	T = check.typExprInternal(e, def, path)
+        fmt.Printf("EXPR(%v, %v) => TYPE(%v, %v) \n", reflect.TypeOf(e), e, reflect.TypeOf(T), T)
 	assert(isTyped(T))
 	check.recordTypeAndValue(e, T, nil)
 
@@ -141,6 +145,8 @@ func (check *checker) typ(e ast.Expr) Type {
 
 // funcType type-checks a function or method type and returns its signature.
 func (check *checker) funcType(sig *Signature, recv *ast.FieldList, ftyp *ast.FuncType) *Signature {
+
+        fmt.Printf("IN PROGRESS, %v", ftyp)
 	scope := NewScope(check.scope)
 	check.recordScope(ftyp, scope)
 
@@ -272,6 +278,7 @@ func (check *checker) typExprInternal(e ast.Expr, def *Named, path []*TypeName) 
 		typ := new(Signature)
 		def.setUnderlying(typ)
 		check.funcType(typ, nil, e)
+                fmt.Printf("IN PROGRESS, EXPR(%v, %v) => TYPE(%v, %v) \n", reflect.TypeOf(e), e, reflect.TypeOf(typ), typ)
 		return typ
 
 	case *ast.InterfaceType:

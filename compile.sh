@@ -32,8 +32,7 @@ for pkg in \
     github.com/mattn/go-sqlite3 \
     github.com/stevedonovan/luar \
     github.com/shavac/readline \
-    github.com/lib/pq \
-    go-future/types # Not in the standard -- yet!
+    github.com/lib/pq 
 do
     go install $pkg
 done

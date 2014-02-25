@@ -12,7 +12,6 @@ type Foo struct {
 	field int
 }
 
-
 func (f *Foo) IntMethod() int {
 	return 0
 }

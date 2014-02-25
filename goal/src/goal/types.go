@@ -5,12 +5,11 @@ import (
 	"strconv"
 
 	"fmt"
-	"go/token"
 	"go/ast"
 	"reflect"
 
+	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
-	 _ "code.google.com/p/go.tools/go/gcimporter"
 )
 
 // Public API
@@ -71,24 +70,56 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 	}
 }
 
-func (context *GlobalSymbolContext) inferTypes(name string, fileSet *token.FileSet, file *ast.File) {
+func (context *GlobalSymbolContext) inferTypes(file *ast.File) {
 	var ctxt types.Config
 	ctxt.Error = func(err error) {
 		fmt.Println("A problem occurred in inferTypes:\n", err)
 	}
-	ctxt.Check(name, fileSet, []*ast.File{file}, context.Info)
+	ctxt.IgnoreFuncBodies = false
+	ctxt.Check(file.Name.Name, context.FileSet, []*ast.File{file}, context.Info)
+
+	for k, vars := range context.Info.InitOrder {
+		fmt.Printf("INITIALIZERS: %v %v\n", k, vars)
+		for _, v := range vars.Lhs {
+			context.Info.Types[vars.Rhs] = types.TypeAndValue{v.Type(), nil}
+		}
+	}
+
+	for k, v := range context.Info.Types {
+		fmt.Printf("Got from Info.Types: KEY(%s, %v), VAL(%s, %v)\n", reflect.TypeOf(k), k, reflect.TypeOf(v.Type), v)
+	}
+
+	for k, v := range context.Info.Implicits {
+		fmt.Printf("Got from Info.Implicits: KEY(%s, %v), VAL(%s, %v)\n", reflect.TypeOf(k), k, reflect.TypeOf(v.Type), v)
+	}
+
+	for _, v := range context.Info.Objects {
+		f, _ := v.(*types.Func)
+		if f != nil {
+			fmt.Printf("Got from Info.Objects: VAL(FUNC, %v, %v)\n", reflect.TypeOf(f.Type()), f.Type())
+		}
+	}
 }
 
 func (context *GlobalSymbolContext) LookupType(expr ast.Expr) types.Type {
 	obj := context.Info.Types[expr]
 	typ := obj.Type
 	if typ == nil {
-		typ = obj.
+		//p, _ := expr.(*ast.FuncType)
+		fmt.Printf("Types: %v\n: ", context.Info.Types)
+		fmt.Printf("Implicits: %v\n: ", context.Info.Implicits)
+		fmt.Printf("Objects: %v\n: ", context.Info.Objects)
+		fmt.Printf("Scopes: %v\n: ", context.Info.Scopes)
+		fmt.Printf("Selections: %v\n: ", context.Info.Selections)
 	}
 	return typ
 }
 
 func (context *GlobalSymbolContext) ExprRepr(expr ast.Expr) string {
 	fmt.Printf("%v\n: ", reflect.TypeOf(expr))
+	p, _ := expr.(*ast.FuncType)
+	if p != nil {
+		fmt.Printf("FUNCDECL %v\n: ", p.Func)
+	}
 	return TypeRepresentation(context.LookupType(expr))
 }

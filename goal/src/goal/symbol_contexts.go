@@ -1,8 +1,8 @@
 package goal
 
 import (
-	"fmt"
 	"code.google.com/p/go.tools/go/types"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,13 +13,17 @@ type GlobalSymbolContext struct {
 	*DataContext
 	FileSet       *token.FileSet
 	Events        *EventContext
-	Info	   	*types.Info
+	Info          *types.Info
 	NameToAstFile map[string]*ast.File
 }
 
 func NewGlobalContext() *GlobalSymbolContext {
 	info := &types.Info{}
 	info.Types = make(map[ast.Expr]types.TypeAndValue)
+	info.Implicits = make(map[ast.Node]types.Object)
+	info.Objects = make(map[*ast.Ident]types.Object)
+	info.Scopes = make(map[ast.Node]*types.Scope)
+	info.InitOrder = []*types.Initializer{}
 	return &GlobalSymbolContext{MakeDataContext(), token.NewFileSet(), NewEventContext(), info, map[string]*ast.File{}}
 }
 
@@ -60,10 +64,10 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 }
 
 func (context *GlobalSymbolContext) ParseAndInferTypes(filename string, altSource interface{}) {
-	fileSet := &token.FileSet{}
-	file, err := parser.ParseFile(fileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
-	context.inferTypes(filename, fileSet, file)
-	
+	// File set aggregates all token information for all our files
+	file, err := parser.ParseFile(context.FileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
+	context.inferTypes(file)
+
 	if err != nil {
 		fmt.Println("Problem in ParseFile:\n", err)
 	}
