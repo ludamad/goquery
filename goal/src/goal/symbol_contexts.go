@@ -2,7 +2,7 @@ package goal
 
 import (
 	"fmt"
-	"go-future/types"
+	"code.google.com/p/go.tools/go/types"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -13,12 +13,14 @@ type GlobalSymbolContext struct {
 	*DataContext
 	FileSet       *token.FileSet
 	Events        *EventContext
+	Info	   	*types.Info
 	NameToAstFile map[string]*ast.File
-	ExprToType    map[ast.Expr]types.Type
 }
 
 func NewGlobalContext() *GlobalSymbolContext {
-	return &GlobalSymbolContext{MakeDataContext(), token.NewFileSet(), NewEventContext(), map[string]*ast.File{}, map[ast.Expr]types.Type{}}
+	info := &types.Info{}
+	info.Types = make(map[ast.Expr]types.TypeAndValue)
+	return &GlobalSymbolContext{MakeDataContext(), token.NewFileSet(), NewEventContext(), info, map[string]*ast.File{}}
 }
 
 func (context *GlobalSymbolContext) FileList() []*ast.File {
@@ -29,9 +31,9 @@ func (context *GlobalSymbolContext) FileList() []*ast.File {
 	return list
 }
 
-func (context *GlobalSymbolContext) ParseAll(files []string) {
+func (context *GlobalSymbolContext) ParseAndInferTypesAll(files []string) {
 	for _, filename := range files {
-		context.Parse(filename, nil)
+		context.ParseAndInferTypes(filename, nil)
 	}
 }
 
@@ -39,7 +41,6 @@ func (context *GlobalSymbolContext) ClearParseResults() {
 	context.DropAllData()
 	context.FileSet = token.NewFileSet()
 	context.NameToAstFile = map[string]*ast.File{}
-	context.ExprToType = map[ast.Expr]types.Type{}
 }
 
 func timeTrack(start time.Time, name string) {
@@ -50,8 +51,7 @@ func timeTrack(start time.Time, name string) {
 func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 
 	context.ClearParseResults()
-	context.ParseAll(files)
-	context.InferTypes()
+	context.ParseAndInferTypesAll(files)
 
 	defer timeTrack(time.Now(), "Actual Analysis")
 	for _, fileSym := range context.FileContextMap() {
@@ -59,8 +59,11 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 	}
 }
 
-func (context *GlobalSymbolContext) Parse(filename string, altSource interface{}) {
-	file, err := parser.ParseFile(context.FileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
+func (context *GlobalSymbolContext) ParseAndInferTypes(filename string, altSource interface{}) {
+	fileSet := &token.FileSet{}
+	file, err := parser.ParseFile(fileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
+	context.inferTypes(filename, fileSet, file)
+	
 	if err != nil {
 		fmt.Println("Problem in ParseFile:\n", err)
 	}
