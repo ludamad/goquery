@@ -3,6 +3,7 @@ package goal
 import (
 	"code.google.com/p/go.tools/go/types"
 	"fmt"
+	"os"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -37,7 +38,7 @@ func (context *GlobalSymbolContext) FileList() []*ast.File {
 
 func (context *GlobalSymbolContext) ParseAndInferTypesAll(files []string) {
 	for _, filename := range files {
-		context.ParseAndInferTypes(filename, nil)
+		context.ParseAndInferTypes(filename)
 	}
 }
 
@@ -63,15 +64,40 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 	}
 }
 
-func (context *GlobalSymbolContext) ParseAndInferTypes(filename string, altSource interface{}) {
-	// File set aggregates all token information for all our files
-	file, err := parser.ParseFile(context.FileSet, filename, altSource, parser.DeclarationErrors|parser.AllErrors)
-	context.inferTypes(file)
+func isDirectory(path string) (bool) {
+	f, err := os.Stat(path)
+	if err == nil {
+		return f.Mode().IsDir()		
+	}	
+	return false
+}
 
-	if err != nil {
-		fmt.Println("Problem in ParseFile:\n", err)
+func (context *GlobalSymbolContext) ParseAndInferTypes(filename string) {
+	if isDirectory(filename) {
+		// File set aggregates all token information for all our files
+		pkgs, err := parser.ParseDir(context.FileSet, filename, func(os.FileInfo) bool {return true}, parser.AllErrors)
+		if err != nil {
+			fmt.Println("Problem in ParseAndInferTypes:\n", err)
+			return;
+		}
+		for pkgName, pkg := range pkgs {
+			files := []*ast.File{}
+			fmt.Println(pkgName, pkg)
+			for filename, file := range pkg.Files {
+				context.NameToAstFile[filename] = file
+				files = append(files, file)
+			}
+			context.inferTypes(pkg.Name, files)
+		}
+	} else {
+		file, err := parser.ParseFile(context.FileSet, filename, nil, parser.AllErrors)
+		if err != nil {
+			fmt.Println("Problem in ParseAndInferTypes:\n", err)
+			return;
+		}
+		context.NameToAstFile[filename] = file
+		context.inferTypes(file.Name.Name, []*ast.File{file})
 	}
-	context.NameToAstFile[filename] = file
 }
 
 func (context *GlobalSymbolContext) FileContextMap() map[string]*FileSymbolContext {

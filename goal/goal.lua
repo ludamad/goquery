@@ -946,6 +946,14 @@ function FindFiles(dir, --[[Optional]] filter)
     return args
 end
 
+function FindPackages(dir, --[[Optional]] filter)
+    local args = {}
+    local files = goal.FindSubdirectories(dir)
+    for i=1,#files do if not filter or filter(files[i]) then append(args, files[i]) end end
+    return args
+end
+
+
 function DataSet(dbKind, fileName) goal.OpenConnection(dbKind, fileName, --[[Remove previous]] true) end
 DataClose = goal.CloseConnection ; DataCommit = goal.Commit
 

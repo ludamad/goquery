@@ -69,13 +69,13 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 	}
 }
 
-func (context *GlobalSymbolContext) inferTypes(file *ast.File) {
+func (context *GlobalSymbolContext) inferTypes(name string, files []*ast.File) {
 	var ctxt types.Config
 	ctxt.Error = func(err error) {
 		fmt.Println("A problem occurred in inferTypes:\n", err)
 	}
 	ctxt.IgnoreFuncBodies = false
-	ctxt.Check(file.Name.Name, context.FileSet, []*ast.File{file}, context.Info)
+	ctxt.Check(name, context.FileSet, files, context.Info)
 
 	//	//for k, vars := range context.Info.InitOrder {
 	//	//	fmt.Printf("INITIALIZERS: %v %v\n", k, vars)

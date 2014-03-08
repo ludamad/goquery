@@ -7,6 +7,7 @@ pkg
 *.lo
 *.so
 *.a
+.*
 src/luv/src/zmq/perf/inproc_lat
 src/luv/src/zmq/perf/inproc_thr
 src/luv/src/zmq/perf/local_lat

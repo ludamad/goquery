@@ -7,6 +7,8 @@ require "ErrorReporting"
 type_ = type
 type = typeof -- Needed for interacting with other code
 
+xpcall = unsafe_xpcall -- Go exceptions don't play nice with Lua. We ignore this...
+
 local repl          = require 'repl.console'
 
 for _, plugin in ipairs { 'linenoise', 'history', 'completion', 'autoreturn' } do

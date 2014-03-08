@@ -52,10 +52,8 @@ func findFilesAux(extension string, dir string, fnames []string) []string {
 		if shouldMatchDir && file.IsDir() {
 			isMatch = true
 		} else if !shouldMatchDir && len(fname) > len(extension) {
-			fmt.Print(fname)
 			expectedLoc := len(fname)- len(extension)
 			isMatch = (strings.Index(fname, extension) == expectedLoc)
-			fmt.Print(isMatch)
 		}
 		if isMatch {
 			fnames = append(fnames, fullName)

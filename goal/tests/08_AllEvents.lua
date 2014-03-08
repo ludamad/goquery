@@ -67,5 +67,5 @@ Event(UnaryExpr "n") (Printf("%s: UnaryExpr\n", location "n"))
 Event(ValueSpec "n") (Printf("%s: ValueSpec\n", location "n"))
 
 Analyze (
-    Files(FindFiles("src"))
+    Files(FindPackages("src"))
 )
