@@ -38,6 +38,7 @@ func colorPrint(code string, args ...interface{}) {
 	}
 }
 
+// If extension is "", finds directories
 func findFilesAux(extension string, dir string, fnames []string) []string {
 	io, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -46,10 +47,21 @@ func findFilesAux(extension string, dir string, fnames []string) []string {
 	for _, file := range io {
 		fname := file.Name()
 		fullName := dir + "/" + fname
-		if len(fname) > 3 && strings.Index(fname, extension) == len(fname)-3 {
+		shouldMatchDir := (extension == "")
+		isMatch := false
+		if shouldMatchDir && file.IsDir() {
+			isMatch = true
+		} else if !shouldMatchDir && len(fname) > len(extension) {
+			fmt.Print(fname)
+			expectedLoc := len(fname)- len(extension)
+			isMatch = (strings.Index(fname, extension) == expectedLoc)
+			fmt.Print(isMatch)
+		}
+		if isMatch {
 			fnames = append(fnames, fullName)
 		}
 		if file.IsDir() {
+			// Search recursively:
 			fnames = findFilesAux(extension, fullName, fnames)
 		}
 	}
@@ -65,6 +77,12 @@ func findGoFiles(dir string) []string {
 func findYAMLFiles(dir string) []string {
 	fnames := []string{}
 	fnames = findFilesAux(".yaml", dir, fnames)
+	return fnames
+}
+
+func findSubdirectories(dir string) []string {
+	fnames := []string{}
+	fnames = findFilesAux("", dir, fnames)
 	return fnames
 }
 
@@ -88,6 +106,7 @@ var _API luar.Map = luar.Map{
 	"NewGlobalContext":   NewGlobalContext,
 	"FindGoFiles":        findGoFiles,
 	"FindYAMLFiles":      findYAMLFiles,
+	"FindSubdirectories": findSubdirectories,
 	"NullFileContext":    &FileSymbolContext{nil, nil},
 	// See codes.go for details:
 	"CurrentTime":     time.Now,
@@ -142,8 +161,10 @@ var _API luar.Map = luar.Map{
 func NewGoalLuaContext(namespace string) *lua.State {
 	L := luar.Init()
 	luar.Register(L, namespace, _API)
-	luar.Register(L, "", luar.Map{"ColorPrint": colorPrint})
-	luar.Register(L, "", luar.Map{"Colorify": colorify})
+	luar.Register(L, "", luar.Map {
+		"ColorPrint": colorPrint,
+		"Colorify": colorify,
+	})
 	return L
 }
 
