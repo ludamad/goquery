@@ -15,8 +15,14 @@ function make_lib() {
     cd "$prev" 
 }
 
+
+# Ensure our library versions gets picked up first, for the following reasons:
+# - The SQLlite3 library is source packed after it broke compatibility in a release (up to date as of March 7th, 2013)
+# - The Lua library is source packed simply to point to our in-tree LuaJIT
+# - The go/types library is shamefully hacked because the author was unable to map FuncDecl to FuncType after a new release
+
 # Environment set up:
-export GOPATH=$GOPATH:"$(pwd)/goal":"$(pwd)/dependencies"
+export GOPATH=$GOPATH:"$(pwd)/goal":"$(pwd)/dependencies" 
 export LIBRARY_PATH=$LIBRARY_PATH:"$(pwd)/.libs"
 
 # Library building:
