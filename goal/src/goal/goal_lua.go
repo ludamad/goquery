@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"runtime/debug"
 	"strings"
+	"go/build"
 	"time"
 )
 
@@ -122,6 +123,7 @@ var _API luar.Map = luar.Map{
 	"ColorPrint":      colorPrint,
 	"BC_UNARY_OP":     BC_UNARY_OP,
 	"BC_JMP":          BC_JMP,
+	"BuildContext":    build.Default,
 	"BC_PRINTFN":      BC_PRINTFN,
 	"BC_SPRINTFN":     BC_SPRINTFN,
 	"BytesToString":   bytesToString,
