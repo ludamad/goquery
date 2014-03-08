@@ -7,30 +7,30 @@ import (
 	"regexp"
 )
 
-func RunTests(dir string, onlyRun int) (int,int) {
+func RunTests(dir string, onlyRun int) (int, int) {
 	io, err := ioutil.ReadDir(dir)
 	if err != nil {
 		fmt.Print(err)
-		return 1,1
+		return 1, 1
 	}
 
 	failList := []string{}
 	failures, total, n := 0, 0, 0
 	for _, file := range io {
 		fname := file.Name()
-		if matched, err := regexp.MatchString("\\d.*\\.lua$", fname) ; !matched || err != nil {
+		if matched, err := regexp.MatchString("\\d.*\\.lua$", fname); !matched || err != nil {
 			continue
 		}
-		n++;
+		n++
 		if onlyRun != -1 && onlyRun != n {
-			continue;
+			continue
 		}
 		total++
 		L := NewGoalLuaContext("goal")
-		// Note: the Goal lua context is strict, so variables must exist before we operate on them:
+		// Note: the Goal lua context is strict, so variables must exist (ie, be non-nil) before we operate on them:
 		L.NewTable()
 		L.SetGlobal("goaltest")
-		luar.Register(L, "goaltest", luar.Map {
+		luar.Register(L, "goaltest", luar.Map{
 			"Filename":      fname,
 			"DirectoryName": dir,
 		})
@@ -51,5 +51,5 @@ func RunTests(dir string, onlyRun int) (int,int) {
 		}
 		fmt.Printf("\n")
 	}
-	return failures,total
+	return failures, total
 }
