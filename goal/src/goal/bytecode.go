@@ -16,6 +16,7 @@ type BytecodeExecContext struct {
 	*GlobalSymbolContext
 	*FileSymbolContext
 	*goalStack
+	parentChain nodeParentChain
 	BaseStackIndex int
 	Index     int // Instruction pointer
 }

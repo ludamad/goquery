@@ -43,6 +43,8 @@ const (
 	BC_UNARY_OP // Performs unary operation <id>. Pops operands, pushes result
 	BC_PRINTFN // Takes <N>, first string is treated as format specifier, pops N, prints string
 	BC_SPRINTFN // Takes <N>, first string is treated as format specifier, pops N, pushes string
+	BC_PUSH_PARENT // Takes <N>, where N=1 is the immediate parent, N=2 the parent's parent, etc
+	BC_PUSH_CHILD_NUM // Takes no arguments, pushes the child number
 	BC_CALLN
 	BC_EXECN
 )

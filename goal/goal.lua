@@ -430,7 +430,11 @@ end
 
 function goal.SimpleBytecodeContext(constants, bytecodes) local bc = goal.NewBytecodeContext() ; goal.PushConstants(bc, constants) ; goal.PushBytecodes(bc, bytecodes) ;return bc end
 
-function goal.SimpleRun(constants, bytecodes) local bc = goal.SimpleBytecodeContext(constants, bytecodes) ; prettyBytecode(bc); bc.Exec(goal.GlobalSymbolContext, goal.NullFileContext, goal.NewObjectStack()) end
+function goal.SimpleRun(constants, bytecodes) 
+    local bc = goal.SimpleBytecodeContext(constants, bytecodes)
+    prettyBytecode(bc)
+    bc.ExecNoParent(goal.GlobalSymbolContext, goal.NullFileContext, goal.NewObjectStack()) 
+end
 
 function goal.PushEvent(type, ev) events.PushEvent(goal.TypeInfo.NameToType[type], ev) end
 

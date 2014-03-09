@@ -107,8 +107,26 @@ func (bc *BytecodeExecContext) execOne() bool {
 		bc.Push(obj)
 	case BC_UNARY_OP:
 		obj := bc.resolveUnaryOp(code.Bytes1to3(), bc.Peek(1))
-		bc.PopN(1);
+		bc.PopN(1)
 		bc.Push(obj)
+	case BC_PUSH_PARENT:
+		order := code.Bytes1to3()
+		par := &bc.parentChain
+		// Get 'n'th parent.
+		for par.parent != nil && order > 1 {
+			par = par.parent
+			order -= 1
+		}
+		bc.Push(makeGoalRef(par.node))
+	case BC_PUSH_CHILD_NUM:
+		order := code.Bytes1to3()
+		par := &bc.parentChain
+		// Get 'n'th parent.
+		for par.parent != nil && order > 1 {
+			par = par.parent
+			order -= 1
+		}
+		bc.Push(makeGoalRef(par.node))
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
 	case BC_CALLN:
@@ -141,13 +159,19 @@ func (bc *BytecodeExecContext) exec() goalRef {
 func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goalRef {
 	oldLen := len(*bc.goalStack)
 
-	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, len(*bc.goalStack) - nargs, 0}
+	chain := nodeParentChain{nil,nil,0}
+	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, chain, len(*bc.goalStack) - nargs, 0}
 	retVal := bcCopy.exec()
 	bc.PopN(len(*bcCopy.goalStack) - oldLen)
 	return retVal
 }
 
-func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
-	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, stack, 0, 0}
+func (bc *BytecodeContext) ExecNoParent(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
+	chain := nodeParentChain{nil,nil,0}
+	bc.Exec(globSym, fileSym, stack, chain)
+}
+
+func (bc *BytecodeContext) Exec(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack, chain nodeParentChain) {
+	bcExecContext := BytecodeExecContext{bc, globSym, fileSym, stack, chain, 0, 0}
 	bcExecContext.exec()
 }
