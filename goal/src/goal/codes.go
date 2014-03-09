@@ -44,7 +44,8 @@ const (
 	BC_PRINTFN // Takes <N>, first string is treated as format specifier, pops N, prints string
 	BC_SPRINTFN // Takes <N>, first string is treated as format specifier, pops N, pushes string
 	BC_PUSH_PARENT // Takes <N>, where N=1 is the immediate parent, N=2 the parent's parent, etc
-	BC_PUSH_CHILD_NUM // Takes no arguments, pushes the child number
+	BC_PUSH_CHILD_NUM // Takes no arguments, pushes the node's child number
+	BC_PUSH_NODE_DEPTH // Takes no arguments, pushes the node's depth
 	BC_CALLN
 	BC_EXECN
 )
@@ -57,6 +58,7 @@ const (
 	BIN_OP_CONCAT
 	BIN_OP_TYPECHECK
 	BIN_OP_EQUAL
+	BIN_OP_REPEAT
 )
 
 const (

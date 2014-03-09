@@ -835,8 +835,22 @@ table.merge(basic, SNodes) -- SNodes is a superset
 local exprs = {} ; goal.BasicENodes = exprs
 
 function exprs.TypeCheck(C, typeExpr, objExpr)
-    local type = goal.TypeInfo.NameToType[typeExpr("").label] ; objExpr = goal.ExprParse(objExpr)(C)
-    return function() C.CompileConstant(type) ; objExpr(C) ; C.Compile123("BC_BIN_OP", goal.BIN_OP_TYPECHECK) end
+    local type = goal.TypeInfo.NameToType[typeExpr("").label]
+    objExpr = goal.ExprParse(objExpr)(C)
+    return function() 
+        C.CompileConstant(type)
+        objExpr(C)
+        C.Compile123("BC_BIN_OP", goal.BIN_OP_TYPECHECK) 
+    end
+end
+
+function exprs.RepeatString(C, str, numExpr)
+    numExpr = goal.ExprParse(numExpr)(C)
+    return function() 
+        C.CompileConstant(str)
+        numExpr(C)
+        C.Compile123("BC_BIN_OP", goal.BIN_OP_REPEAT) 
+    end
 end
 
 function exprs.var(C, repr) return C.ResolveObjectRef(repr) end
@@ -847,8 +861,25 @@ local function unaryOp(op) return function(C, val)
     val = goal.ExprParse(val)(C) ; return function() val(C) ; C.Compile123("BC_UNARY_OP", op) end
 end end
 
+function exprs.NodeDepth(C)
+    return function() C.Compile123("BC_PUSH_NODE_DEPTH", 0) end
+end
+
+function exprs.ChildNum(C)
+    return function() C.Compile123("BC_PUSH_CHILD_NUM", 0) end
+end
+
+function exprs.Parent(C, --[[Optional]] parentNum)
+    parentNum = parentNum or 1
+    return function() C.Compile123("BC_PUSH_PARENT", parentNum) end
+end
+
 local function binOp(op) return function(C, val1, val2)
-    val1 = goal.ExprParse(val1)(C) ; val2 = goal.ExprParse(val2)(C); return function() val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) end
+    val1 = goal.ExprParse(val1)(C)
+    val2 = goal.ExprParse(val2)(C)
+    return function() 
+        val1(C) ; val2(C) ; C.Compile123("BC_BIN_OP", op) 
+    end
 end end
 for k,v in pairs { Not = goal.UNARY_OP_NOT, Len = goal.UNARY_OP_LEN } do exprs[k] = unaryOp(v) end
 for k,v in pairs { And = goal.BIN_OP_AND, Or = goal.BIN_OP_OR, Xor = goal.BIN_OP_XOR, Index = goal.BIN_OP_INDEX, Concat = goal.BIN_OP_CONCAT, Equal = goal.BIN_OP_EQUAL } do exprs[k] = binOp(v) end

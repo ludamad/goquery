@@ -42,6 +42,14 @@ func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) g
 		case BIN_OP_INDEX: return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
 		case BIN_OP_CONCAT: return makeStrRef(val1.Value.(string) + val2.Value.(string))
 		case BIN_OP_EQUAL: return makeBoolRef(val1.Value == val2.Value)
+		case BIN_OP_REPEAT: 
+			str := val1.Value.(string)
+			num := val2.Value.(int)
+			result := ""
+			for i := 0; i < num; i++ {
+				result += str
+			}
+			return makeStrRef(result)
 	}
 	panic("Unexpected bin op")
 }
@@ -119,14 +127,9 @@ func (bc *BytecodeExecContext) execOne() bool {
 		}
 		bc.Push(makeGoalRef(par.node))
 	case BC_PUSH_CHILD_NUM:
-		order := code.Bytes1to3()
-		par := &bc.parentChain
-		// Get 'n'th parent.
-		for par.parent != nil && order > 1 {
-			par = par.parent
-			order -= 1
-		}
-		bc.Push(makeGoalRef(par.node))
+		bc.Push(makeGoalRef(bc.parentChain.childNum))
+	case BC_PUSH_NODE_DEPTH:
+		bc.Push(makeGoalRef(bc.parentChain.depth))
 	case BC_JMP:
 		bc.Index = code.Bytes1to3()
 	case BC_CALLN:
@@ -159,7 +162,7 @@ func (bc *BytecodeExecContext) exec() goalRef {
 func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goalRef {
 	oldLen := len(*bc.goalStack)
 
-	chain := nodeParentChain{nil,nil,0}
+	chain := nodeParentChain{nil,nil,0, 0}
 	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, chain, len(*bc.goalStack) - nargs, 0}
 	retVal := bcCopy.exec()
 	bc.PopN(len(*bcCopy.goalStack) - oldLen)
@@ -167,7 +170,7 @@ func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goal
 }
 
 func (bc *BytecodeContext) ExecNoParent(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
-	chain := nodeParentChain{nil,nil,0}
+	chain := nodeParentChain{nil,nil,0, 0}
 	bc.Exec(globSym, fileSym, stack, chain)
 }
 

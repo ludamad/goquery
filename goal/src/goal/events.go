@@ -24,6 +24,7 @@ type nodeParentChain struct {
 	node ast.Node
 	parent *nodeParentChain
 	childNum int
+	depth int
 }
 
 type traverseContext struct {
@@ -39,7 +40,7 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 		return ev
 	}
 	evChild := *ev
-	evChild.chain = nodeParentChain {n, &ev.chain, 0}
+	evChild.chain = nodeParentChain {n, &ev.chain, 0, ev.chain.depth + 1}
 	bcList := ev.Events[reflect.TypeOf(n).Elem()]
 	if bcList != nil {
 		for _, bc := range(bcList) {
@@ -56,6 +57,7 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 }
 
 func (ev *EventContext) Analyze(globSym *GlobalSymbolContext, fileSym *FileSymbolContext) {
-	tcontext := traverseContext{ev, nodeParentChain{nil,nil, 0}, globSym, fileSym, &goalStack{makeStrRef(nil)}}
+	chain := nodeParentChain{nil,nil, 0, 0}
+	tcontext := traverseContext{ev, chain, globSym, fileSym, &goalStack{makeStrRef(nil)}}
 	ast.Walk(&tcontext, fileSym.File)
 }
