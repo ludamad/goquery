@@ -106,7 +106,7 @@ var _API luar.Map = luar.Map{
 	"FindGoFiles":        findGoFiles,
 	"FindYAMLFiles":      findYAMLFiles,
 	"FindSubdirectories": findSubdirectories,
-	"NullFileContext":    &FileSymbolContext{nil, nil},
+	"NullFileContext":    NewFileSymbolContext(nil, nil),
 	// See codes.go for details:
 	"CurrentTime":     time.Now,
 	"BC_CONSTANT":     BC_CONSTANT,
@@ -119,7 +119,6 @@ var _API luar.Map = luar.Map{
 	"BC_CONCATN":      BC_CONCATN,
 	"BC_SAVE_TUPLE":   BC_SAVE_TUPLE,
 	"BC_JMP_FALSE":    BC_JMP_FALSE,
-	"BC_PUSH_CHILD_NUM":    BC_PUSH_CHILD_NUM,
 	"BC_PUSH_PARENT":    BC_PUSH_PARENT,
 	"BC_PUSH_NODE_DEPTH":    BC_PUSH_NODE_DEPTH,
 	"BC_BIN_OP":       BC_BIN_OP,

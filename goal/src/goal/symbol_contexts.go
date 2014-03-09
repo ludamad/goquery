@@ -111,15 +111,37 @@ func (context *GlobalSymbolContext) FileContextMap() map[string]*FileSymbolConte
 	// Build the file contexts
 	m := map[string]*FileSymbolContext{}
 	for name, file := range context.NameToAstFile {
-		fc := &FileSymbolContext{file, tokenFiles[name]}
+		fc := NewFileSymbolContext(file, tokenFiles[name])
 		m[name] = fc
 	}
 	return m
 }
 
+
+type nodeIDContext struct {
+	nodeToObjectID map[ast.Node]int
+	nodeCount int
+}
+
+// Returns a unique (within the current session!) ID for the object:
+func (context *FileSymbolContext) GetObjectId(node ast.Node) int {
+	N := &context.idContext.nodeToObjectID
+	val, ok := (*N)[node]
+	if !ok {
+		(*N)[node] = val
+	}
+	return val
+}
+
 type FileSymbolContext struct {
 	File      *ast.File
 	TokenFile *token.File
+	idContext nodeIDContext
+}
+
+func NewFileSymbolContext(file *ast.File, tokenFile *token.File) *FileSymbolContext {
+	idContext := nodeIDContext {map[ast.Node]int{}, 0}
+	return &FileSymbolContext {file, tokenFile, idContext}
 }
 
 func (fileSym *FileSymbolContext) PositionString(node ast.Node) string {

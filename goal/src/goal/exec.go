@@ -28,7 +28,8 @@ func isTrueValue(val interface{}) bool {
 func (bc BytecodeExecContext) resolveUnaryOp(id int, val goalRef) goalRef {
 	switch id {
 		case UNARY_OP_NOT: return makeBoolRef(!isTrueValue(val)) 
-		case UNARY_OP_LEN: return makeIntRef(reflect.ValueOf(val.Value).Len())  
+		case UNARY_OP_LEN: return makeIntRef(reflect.ValueOf(val.Value).Len())
+		case UNARY_OP_GETID: return makeIntRef(reflect.ValueOf(val.Value).Len())  
 	}
 	panic("Unexpected unary op")
 }
@@ -126,8 +127,6 @@ func (bc *BytecodeExecContext) execOne() bool {
 			order -= 1
 		}
 		bc.Push(makeGoalRef(par.node))
-	case BC_PUSH_CHILD_NUM:
-		bc.Push(makeGoalRef(bc.parentChain.childNum))
 	case BC_PUSH_NODE_DEPTH:
 		bc.Push(makeGoalRef(bc.parentChain.depth))
 	case BC_JMP:
@@ -162,7 +161,7 @@ func (bc *BytecodeExecContext) exec() goalRef {
 func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goalRef {
 	oldLen := len(*bc.goalStack)
 
-	chain := nodeParentChain{nil,nil,0, 0}
+	chain := nodeParentChain{nil,nil, 0}
 	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, chain, len(*bc.goalStack) - nargs, 0}
 	retVal := bcCopy.exec()
 	bc.PopN(len(*bcCopy.goalStack) - oldLen)
@@ -170,7 +169,7 @@ func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goal
 }
 
 func (bc *BytecodeContext) ExecNoParent(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
-	chain := nodeParentChain{nil,nil,0, 0}
+	chain := nodeParentChain{nil,nil,0}
 	bc.Exec(globSym, fileSym, stack, chain)
 }
 

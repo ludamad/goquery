@@ -45,6 +45,7 @@ const (
 	BC_SPRINTFN // Takes <N>, first string is treated as format specifier, pops N, pushes string
 	BC_PUSH_PARENT // Takes <N>, where N=1 is the immediate parent, N=2 the parent's parent, etc
 	BC_PUSH_CHILD_NUM // Takes no arguments, pushes the node's child number
+	BC_RESET_CHILD_NUM // Resets the child enumeration to 0
 	BC_PUSH_NODE_DEPTH // Takes no arguments, pushes the node's depth
 	BC_CALLN
 	BC_EXECN
@@ -64,6 +65,7 @@ const (
 const (
 	UNARY_OP_NOT = iota // Evaluates a 'not' of the top element, pops it, pushes result
 	UNARY_OP_LEN
+	UNARY_OP_GETID
 )
 
 // Special members

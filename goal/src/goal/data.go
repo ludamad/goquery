@@ -1,16 +1,13 @@
 package goal
 
-import ("database/sql")
-
-type fieldType int
-const (
-	FIELD_TYPE_STRING fieldType = iota
-	FIELD_TYPE_INT
+import (
+	"database/sql"
+	"strings"
 )
 
 type field struct {
 	Name string
-	Type fieldType
+	Type string
 }
 
 type DataSchema struct {
@@ -37,10 +34,14 @@ func MakeDataContext() *DataContext {
 }
 
 func (s *DataContext) DefineData(name string, fieldNames, keys []string ) int {
-	// TODO: All types are strings for now:
 	fields := []field{}
 	for _, fname := range fieldNames {
-		fields = append(fields, field {fname, FIELD_TYPE_STRING})
+		parts := strings.Split(fname, ":")
+		typ := "TEXT" // Default to 'string' type
+		if len(parts) >= 2 {
+			typ = parts[1]
+		}
+		fields = append(fields, field {parts[0], typ})
 	} 
 	schema := makeSchema(len(s.Schemas), name, fields, keys)
 	s.Schemas = append(s.Schemas, schema)

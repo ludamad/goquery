@@ -130,11 +130,7 @@ func (ds *DataSchema) CreateTable(context *DatabaseContext) {
 	fieldSchema := []string{}
 	for _, f := range ds.Fields {
 		sqlCheckName(f.Name)
-		if f.Type == FIELD_TYPE_STRING {
-			fieldSchema = append(fieldSchema, f.Name+" TEXT")
-		} else {
-			panic("Unexpected field type!")
-		}
+		fieldSchema = append(fieldSchema, f.Name+" "+ f.Type)
 	}
 	sql := fmt.Sprintf("CREATE TABLE %s(%s, PRIMARY KEY (%s))", ds.Name, strings.Join(fieldSchema, ","), strings.Join(ds.Keys, ","))
 	_, err := context.DB.Exec(sql)

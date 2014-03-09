@@ -865,10 +865,6 @@ function exprs.NodeDepth(C)
     return function() C.Compile123("BC_PUSH_NODE_DEPTH", 0) end
 end
 
-function exprs.ChildNum(C)
-    return function() C.Compile123("BC_PUSH_CHILD_NUM", 0) end
-end
-
 function exprs.Parent(C, --[[Optional]] parentNum)
     parentNum = parentNum or 1
     return function() C.Compile123("BC_PUSH_PARENT", parentNum) end
