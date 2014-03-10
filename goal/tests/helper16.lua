@@ -141,24 +141,30 @@ end end
 DataDef "BasicLit" ("Value")
 DataDef "Ident" ("Name")
 
--- Complex nodes
 ListLink "CompositeLit" ("Elts")
 
 Link     "CallExpr" ("Fun")
 ListLink "CallExpr" ("Args")
 
-ListLink "ReturnStmt" ("Results")
-ListLink "AssignStmt" ("Lhs", "Rhs")
-ListLink "BlockStmt" ("List")
 ListLink "CaseClause" ("List", "Body")
+ListLink "FieldList" ("List")
+Link "Field" ("Doc", "Type", "Tag", "Comment")
+DataDef "Field" ("name")
 
 Link     "CommClause" ("Comm")
 ListLink "CommClause" ("Body")
 
--- Simple nodes
-
+-- Declarations
+Link "File" ("Doc", "Name")
+ListLink "File" ("Decls")
+ListLink "GenDecl" ("Specs")
+Link "GenDecl" ("Doc")
 Link "FuncLit" ("Body")
+
+-- Literations
 Link "Ellipsis" ("Elt")
+
+-- Expressions
 Link "ParenExpr" ("X")
 Link "SelectorExpr" ("X", "Sel")
 Link "IndexExpr" ("X", "Index")
@@ -170,19 +176,26 @@ Link "BinaryExpr" ("X", "Y")
 Link "KeyValueExpr" ("Key", "Value")
 Link "RangeStmt" ("Key", "Value", "X", "Body")
 
+ListLink "FieldList" ("List")
+
+-- Types
 Link "ArrayType" ("Len", "Elt")
 Link "FuncType" ("Params", "Results")
 Link "StructType" ("Fields")
 Link "InterfaceType" ("Methods")
 Link "MapType" ("Key", "Value")
 Link "ChanType" ("Value")
+
+-- Statements
 Link "DeclStmt" ("Decl")
 Link "LabeledStmt" ("Label", "Stmt")
 Link "ExprStmt" ("X")
 Link "SendStmt" ("Chan", "Value")
 Link "IncDecStmt" ("X")
+ListLink "ReturnStmt" ("Results")
+ListLink "AssignStmt" ("Lhs", "Rhs")
+ListLink "BlockStmt" ("List")
 
--- Statements
 Link "GoStmt" ("Call")
 Link "DeferStmt" ("Call")
 Link "BranchStmt" ("Label")

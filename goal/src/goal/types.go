@@ -103,11 +103,30 @@ func (context *GlobalSymbolContext) LookupType(expr ast.Expr) types.Type {
 	return typ
 }
 
+func (context *GlobalSymbolContext) ellipseRepr(expr ast.Expr) string {
+	ellips, ok := expr.(*ast.Ellipsis)
+	if ok { // Special case, ellipsis type
+		typ := context.LookupType(ellips.Elt)
+		return "..." + TypeRepresentation(typ)
+	}
+	return ""
+}
+
 func (context *GlobalSymbolContext) ExprRepr(expr ast.Expr) string {
+	ellips := context.ellipseRepr(expr)
+	if ellips != "" {
+		return ellips
+	}
+	//fmt.Printf("\n>>.ExprRepr x=%#v, typ=%#v\n\n", expr, context.LookupType(expr))
 	return TypeRepresentation(context.LookupType(expr))
 }
 
 func (context *GlobalSymbolContext) exprReprRef(expr ast.Expr) goalRef {
+	ellips := context.ellipseRepr(expr)
+	if ellips != "" {
+		return makeStrRef(ellips)
+	}
+	//fmt.Printf("** Lookup: %+v \n", expr)
 	typ := context.LookupType(expr)
 	if typ == nil {
 		//fmt.Printf("NO GET x=%#v, typ=%#v\n", expr, typ)

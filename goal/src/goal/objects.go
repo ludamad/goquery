@@ -210,6 +210,9 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		if memberIdx == SMEMBER_type {
 			return makeStrRef(bc.ExprRepr(node.Type))
 		} else if memberIdx == SMEMBER_name {
+			if len(node.Names) == 0 {
+				return makeStrRef(nil)
+			}
 			return makeStrRef(node.Names[0].Name)
 		}
 
