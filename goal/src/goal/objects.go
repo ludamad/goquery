@@ -188,8 +188,8 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 	}
 
 	if memberIdx == SMEMBER_type {
-		expr, err := n.Value.(ast.Expr)
-		if !err {
+		expr, ok := n.Value.(ast.Expr)
+		if ok {
 			return bc.exprReprRef(expr)
 		}
 	}

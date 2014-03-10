@@ -25,6 +25,7 @@ local function create_common_tables()
     Data "node_links" (
         Key "tag:INTEGER", 
         Key "id:INTEGER", -- ID of object
+        Key "label", 
         Key "link_number:INTEGER", 
         "link_id:INTEGER"
     )
@@ -62,28 +63,18 @@ function FuncDeclNode:emit_event(Tag)
     )
 end
 
--- BlockStmt
-local BlockStmtNode = newtype()
-function BlockStmtNode:init() end
-
-function BlockStmtNode:create_table()
-end
-
-function BlockStmtNode:emit_event(Tag)
-    Event(BlockStmt "n") (
-        Store "node_data" (Tag, id "n", Constant "BlockStmtNode", --[[No Data]] Nil(), location "n", --[[No type]] Nil()),
-        ForPairs "k" "v" (List "n") (
-            Store "node_links" (Tag, id "n", var "k", id "v")
-        )
-    )
-end
-
 local NodeDumper = newtype()
 
-function NodeDumper:init(name, --[[Optional]] children, --[[Optional]] lists)
+function NodeDumper:init(name, --[[Optional]] data, --[[Optional]] children, --[[Optional]] lists)
+    if data then
+        data = var("n."..data)
+    else
+        data = Nil()
+    end
     children  = children or {}
     lists = lists or {}
 
+    self.data = data
     self.name = name
     self.children = children
     self.lists = lists
@@ -95,21 +86,20 @@ function NodeDumper:create_table() end
 
 function NodeDumper:_handle_data(Tag)
     return Store "node_data" (Tag, id "n", 
-            Constant(self.name), 
-            --[[TODO: No Data]] Nil(),
+            Constant(self.name), self.data,
             location "n", type "n"
     )
 end
 function NodeDumper:_handle_links(Tag)
     local links = {} 
     for i,child in ipairs(self.children) do
-    --    append(links,
-    --        Store "node_links" (Tag, id "n", Constant(i), var("v.".. child .. ".id"))
-    --    )
+        append(links,
+            Store "node_links" (Tag, id "n", Constant(child), Nil(), var("n.".. child .. ".id"))
+        )
     end 
     for list in values(self.lists) do
         append(links, ForPairs "k" "v" (var("n."..list)) (
-            Store "node_links" (Tag, id "n", var "k", id "v")
+            Store "node_links" (Tag, id "n", Constant(list), var "k", id "v")
         ))
     end
     return links
@@ -128,8 +118,7 @@ end
 --------------------------------------------------------------------------------
 
 local node_types = {
-  FuncDeclNode.create(),
-  BlockStmtNode.create()
+  FuncDeclNode.create()
 }
 
 local schemas = {}
@@ -138,17 +127,36 @@ local function Link(name) return function(...)
     schemas[name].children = {...}
 end end
 
+local function DataDef(name) return function(def)
+    schemas[name] = schemas[name] or {}
+    schemas[name].data = def
+end end
+
 local function ListLink(name) return function(...)
     schemas[name] = schemas[name] or {}
     schemas[name].lists = {...}
 end end
 
+-- Terminal nodes
+DataDef "BasicLit" ("Value")
+DataDef "Ident" ("Name")
+
 -- Complex nodes
 ListLink "CompositeLit" ("Elts")
-Link "CallExpr" ("Fun")
+
+Link     "CallExpr" ("Fun")
 ListLink "CallExpr" ("Args")
 
+ListLink "ReturnStmt" ("Results")
+ListLink "AssignStmt" ("Lhs", "Rhs")
+ListLink "BlockStmt" ("List")
+ListLink "CaseClause" ("List", "Body")
+
+Link     "CommClause" ("Comm")
+ListLink "CommClause" ("Body")
+
 -- Simple nodes
+
 Link "FuncLit" ("Body")
 Link "Ellipsis" ("Elt")
 Link "ParenExpr" ("X")
@@ -158,10 +166,12 @@ Link "SliceExpr" ("X", "Low", "High", "Max")
 Link "TypeAssertExpr" ("X")
 Link "StarExpr" ("X")
 Link "UnaryExpr" ("X")
+Link "BinaryExpr" ("X", "Y")
 Link "KeyValueExpr" ("Key", "Value")
+Link "RangeStmt" ("Key", "Value", "X", "Body")
 
--- Types
 Link "ArrayType" ("Len", "Elt")
+Link "FuncType" ("Params", "Results")
 Link "StructType" ("Fields")
 Link "InterfaceType" ("Methods")
 Link "MapType" ("Key", "Value")
@@ -172,8 +182,25 @@ Link "ExprStmt" ("X")
 Link "SendStmt" ("Chan", "Value")
 Link "IncDecStmt" ("X")
 
+-- Statements
+Link "GoStmt" ("Call")
+Link "DeferStmt" ("Call")
+Link "BranchStmt" ("Label")
+Link "IfStmt" ("Init", "Else", "Cond", "Body")
+Link "SwitchStmt" ("Init", "Tag", "Body")
+Link "TypeSwitchStmt" ("Init", "Assign", "Body")
+Link "SelectStmt" ("Body")
+Link "ForStmt" ("Init", "Cond", "Post", "Body")
+
+-- Specifications
+Link "TypeSpec" ("Type")
+Link "ImportSpec" ("Doc", "Name", "Path", "Comment")
+
+ListLink "ValueSpec" ("Names", "Values")
+Link "ValueSpec" ("Doc", "Type", "Comment")
+
 for name, schema in pairs(schemas) do
-   local nt = NodeDumper.create(name, schema.children, schema.lists)
+   local nt = NodeDumper.create(name, schema.data, schema.children, schema.lists)
    append(node_types, nt)   
 end
 

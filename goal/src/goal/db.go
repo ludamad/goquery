@@ -133,7 +133,9 @@ func (ds *DataSchema) CreateTable(context *DatabaseContext) {
 		fieldSchema = append(fieldSchema, f.Name+" "+f.Type)
 	}
 	sql := fmt.Sprintf("CREATE TABLE %s(%s, PRIMARY KEY (%s))", ds.Name, strings.Join(fieldSchema, ","), strings.Join(ds.Keys, ","))
+	fmt.Print("SQL: ", sql, "\n")
 	_, err := context.DB.Exec(sql)
+
 	if err != nil {
 		panic(err)
 	}
