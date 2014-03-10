@@ -16,9 +16,6 @@ for _, plugin in ipairs { 'linenoise', 'history', 'completion', 'autoreturn' } d
     repl:loadplugin(plugin)
 end
 
-local sql = require "ljsqlite3"
-local conn = sql.open("14_TreeSerialization.db")  
-
 print("Welcome to GoAL interactive mode.")
 repl:run()
 

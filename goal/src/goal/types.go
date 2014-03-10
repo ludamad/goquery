@@ -71,11 +71,48 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 
 func (context *GlobalSymbolContext) inferTypes(name string, files []*ast.File) {
 	var ctxt types.Config
+
 	ctxt.Error = func(err error) {
 		fmt.Println("A problem occurred in inferTypes:\n", err)
 	}
 	ctxt.IgnoreFuncBodies = false
-	ctxt.Check(name, context.FileSet, files, context.Info)
+	_, err := ctxt.Check(name, context.FileSet, files, context.Info)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//var scope *types.Scope
+	//scope = pkg.Scope()
+	//// IMPORTANT
+	//// Fill in whatever type annotations may be missing:
+	//for _, file := range files {
+	//	ast.Inspect(file, func(node ast.Node) bool {
+	//		expr, ok := node.(ast.Expr)
+	//		//currentScope := context.Info.Scopes[node]
+	//		//if currentScope != nil {
+	//		//	currentScope =
+	//		//}
+	//		if ok {
+	//			prev := context.Info.Types[expr]
+	//			if prev.Type == nil {
+	//				scope = context.Info.Scopes[node]
+	//				if scope == nil {
+	//					return true
+	//				}
+	//				fmt.Println("Scope defined for ", node)
+	//				typ, _, err := types.EvalNode(context.FileSet, expr, pkg, scope)
+
+	//				if err != nil {
+	//					panic(err)
+	//				}
+	//				prev.Type = typ
+	//				context.Info.Types[expr] = prev
+	//			}
+	//		}
+	//		return true
+	//	})
+	//}
 
 	//	//for k, vars := range context.Info.InitOrder {
 	//	//	fmt.Printf("INITIALIZERS: %v %v\n", k, vars)
@@ -104,16 +141,33 @@ func (context *GlobalSymbolContext) LookupType(expr ast.Expr) types.Type {
 	obj := context.Info.Types[expr]
 	typ := obj.Type
 	if typ == nil {
+
+		//fmt.Println("GOTOTOT")
+		//for k, v := range context.Info.Types {
+		//	fmt.Printf("RECORDED x=%#v, typ=%#v\n", k, v)
+
+		//}
+		//panic("TEST")
 		//p, _ := expr.(*ast.FuncType)
-		fmt.Printf("Types: %v\n: ", context.Info.Types)
-		fmt.Printf("Implicits: %v\n: ", context.Info.Implicits)
-		fmt.Printf("Objects: %v\n: ", context.Info.Objects)
-		fmt.Printf("Scopes: %v\n: ", context.Info.Scopes)
-		fmt.Printf("Selections: %v\n: ", context.Info.Selections)
+		//fmt.Printf("Types: %v\n: ", context.Info.Types)
+		//fmt.Printf("Implicits: %v\n: ", context.Info.Implicits)
+		//fmt.Printf("Objects: %v\n: ", context.Info.Objects)
+		//fmt.Printf("Scopes: %v\n: ", context.Info.Scopes)
+		//fmt.Printf("Selections: %v\n: ", context.Info.Selections)
 	}
 	return typ
 }
 
 func (context *GlobalSymbolContext) ExprRepr(expr ast.Expr) string {
 	return TypeRepresentation(context.LookupType(expr))
+}
+
+func (context *GlobalSymbolContext) exprReprRef(expr ast.Expr) goalRef {
+	typ := context.LookupType(expr)
+	if typ == nil {
+		fmt.Printf("NO GET x=%#v, typ=%#v\n", expr, typ)
+		return makeStrRef(nil)
+	}
+	fmt.Printf("!**GET x=%#v, typ=%#v\n", expr, typ)
+	return makeStrRef(TypeRepresentation(typ))
 }

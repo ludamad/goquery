@@ -1,0 +1,178 @@
+--    Ellipsis = {
+--        optional = {"Elt"}
+--    },
+--
+--    CompositeLit = {
+----        walkExprList(Elts "n")
+--    },
+--
+--    ParenExpr = {
+--        children = {"X"}
+--    },
+--
+--    SelectorExpr = {
+--        children = {"X", "Sel"}
+--    },
+--    IndexExpr = {
+--        children = {"X", "Index"}
+--    },
+--    SliceExpr = {
+--        children = {"X"},
+--        optional = {"Low", "High", "Max"}
+--    },
+--    TypeAssertExpr = {
+--        children = {"X"}
+--    },
+--    CallExpr = {
+--        children = {"Fun"}
+----        walkExprList(Args "n")
+--    },
+--    StarExpr = {
+--        children = {"X"}
+--
+--    },
+--    UnaryExpr = {
+--        children = {"X"}
+--    },
+--    BinaryExpr = {
+--        children = {"X", "Y"}
+--    },
+--    KeyValueExpr = {
+--        children = {"Key", "Value"}
+--    },
+--    -- Types
+--    ArrayType = {
+--        optional = {"Len"},
+--        children = {"Elt"}
+--    },
+--    StructType = {
+--        children = {"Fields"}
+--    },
+--    InterfaceType = {
+--        children = {"Methods"}
+--    },
+--    MapType = {
+--        children = {"Key", "Value"}
+--    },
+--    ChanType = {
+--        children = {"Value"}
+--    },
+--    DeclStmt = {
+--        children = {"Decl"}
+--    },
+--    LabeledStmt = {
+--        children = {"Label", "Stmt"}
+--    },
+--    ExprStmt = {
+--        children = {"X"}
+--    },
+--    SendStmt = {
+--        children = {"Chan", "Value"}
+--    },
+--    IncDecStmt = {
+--        children = {"X"}
+--
+--    },
+--   -- AssignStmt = {
+--   --     walkExprList(Lhs "n")
+--   --     walkExprList(Rhs "n")
+--   -- },
+--    GoStmt = {
+--        children = {"Call"}
+--    },
+--    DeferStmt = {
+--        children = {"Call"}
+--    },
+--    ReturnStmt = {
+--    --    walkExprList(Results "n")
+--    --
+--      },
+--    BranchStmt = {
+--            optional = {"Label"}
+--    },
+--    BlockStmt = {
+--    --    walkStmtList(List "n")
+--    },
+--    IfStmt = {
+--        optional = {"Init", "Else"},
+--        children = {"Cond", "Body"}
+--    },
+--    CaseClause = {
+----        walkExprList(List "n")
+----        walkStmtList(Body "n")
+--    },
+----
+----    SwitchStmt = {
+----            optional = {"Init"}
+----            optional = {"Tag"}
+----        children = {"Body"}
+----    },
+----    TypeSwitchStmt = {
+----            optional = {"Init"}
+----        Assign
+----        Body
+----
+----    },
+----    CommClause = {
+----        if n.Comm != nil {
+----            Comm
+----        }
+----        walkStmtList(Body "n")
+----
+----    },
+----    SelectStmt = {
+----        Body
+----
+----    },
+----    ForStmt = {
+----        if n.Init != nil {
+----            Init
+----        }
+----        if n.Cond != nil {
+----            Cond
+----        }
+----        if n.Post != nil {
+----            Post
+----        }
+----        Body
+----
+----    },
+----    RangeStmt = {
+----        Key
+----        if n.Value != nil {
+----            Value
+----        }
+----        X
+----        Body
+----
+----    },
+----    ImportSpec = {
+----        if n.Doc != nil {
+----            Doc
+----        }
+----        if n.Name != nil {
+----            Name
+----        }
+----        Path
+----        if n.Comment != nil {
+----            Comment
+----        }
+----
+----    },
+----    ValueSpec = {
+----        if n.Doc != nil {
+----            Doc
+----        }
+----        walkIdentList(Names "n")
+----        if n.Type != nil {
+----            Type
+----        }
+----        walkExprList(Values "n")
+----        if n.Comment != nil {
+----            Comment
+----        }
+----    },
+--    TypeSpec = {
+--        children = {"Type"} 
+--    }
+

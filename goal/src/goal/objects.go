@@ -178,13 +178,20 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 
 	if memberIdx == SMEMBER_id {
 		if n.Value == nil {
-			return makeStrRef(nil)	
-		}	
+			return makeStrRef(nil)
+		}
 		return makeIntRef(bc.GetObjectId(n.Value.(ast.Node)))
 	}
 
 	if n.Value == nil {
 		return makeStrRef("")
+	}
+
+	if memberIdx == SMEMBER_type {
+		expr, err := n.Value.(ast.Expr)
+		if !err {
+			return bc.exprReprRef(expr)
+		}
 	}
 
 	switch node := n.Value.(type) {
@@ -205,6 +212,27 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		} else if memberIdx == SMEMBER_name {
 			return makeStrRef(node.Names[0].Name)
 		}
+
+	case *ast.FuncLit:
+		if memberIdx == SMEMBER_type {
+			return makeStrRef(bc.ExprRepr(node.Type))
+		}
+
+	case *ast.CompositeLit:
+		if memberIdx == SMEMBER_type {
+			if node.Type == nil {
+				return makeStrRef("")
+			}
+			return makeStrRef(bc.ExprRepr(node.Type))
+		}
+
+	case *ast.TypeAssertExpr:
+		if memberIdx == SMEMBER_type {
+			if node.Type == nil {
+				return makeStrRef(nil)
+			}
+			return makeStrRef(bc.ExprRepr(node.Type))
+		}
 	case *ast.TypeSpec:
 		if memberIdx == SMEMBER_type {
 			return makeStrRef(bc.ExprRepr(node.Type))
@@ -214,6 +242,10 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 	}
 	if memberIdx == SMEMBER_location {
 		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
+	}
+
+	if memberIdx == SMEMBER_type {
+		return makeStrRef(nil)
 	}
 	panic("resolveSpecialMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())
 }

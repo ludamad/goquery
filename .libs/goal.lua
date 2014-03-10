@@ -333,6 +333,7 @@ function pairsAll(...) return pairs(mergeAll(...)) end
 function pairsAllOverwriting(...) return pairs(mergeAllOverwriting(...)) end
 
 function ipairsAll(...) return ipairs(appendAll(...)) end
+function unpackAll(...) return unpack(appendAll(...)) end
 
 function valuesAll(...) return values(appendAll(...)) end
 
@@ -731,7 +732,8 @@ local ENodes = {} ; goal.ENodes = ENodes
 
 -- Create an AST node from a label-node using a given transformation table:
 
-local function nodeTransform(nodeTable, lnode) if type(lnode) == "function" then pretty(debug.getinfo(lnode)) end ; assert(lnode.label and lnode.values) ; 
+local function nodeTransform(nodeTable, lnode) 
+    if type(lnode) == "function" then pretty(debug.getinfo(lnode)) end ; assert(lnode.label and lnode.values) ; 
     return function(C) 
         assert(nodeTable[lnode.label], ("'%s' is not a valid code node!"):format(lnode.label))
         return nodeTable[lnode.label](C, unpack(lnode.values))
@@ -868,6 +870,10 @@ end end
 
 function exprs.NodeDepth(C)
     return function() C.Compile123("BC_PUSH_NODE_DEPTH", 0) end
+end
+
+function exprs.Nil(C)
+    return function() C.Compile123("BC_PUSH_NIL", 0) end
 end
 
 function exprs.Parent(C, --[[Optional]] parentNum)
