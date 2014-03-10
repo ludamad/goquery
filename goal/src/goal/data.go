@@ -2,7 +2,6 @@ package goal
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 )
 
@@ -48,7 +47,6 @@ func (s *DataContext) DefineData(name string, fieldNames, keys []string) int {
 		if len(parts) >= 2 {
 			typ = parts[1]
 		}
-		fmt.Print(parts[0], typ)
 		fields = append(fields, field{parts[0], typ})
 	}
 	schema := makeSchema(len(s.Schemas), name, fields, filteredKeys)

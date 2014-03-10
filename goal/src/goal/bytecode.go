@@ -43,6 +43,11 @@ func (bc *BytecodeExecContext) concatStrings(num int) {
 	bc.Push(makeStrRef(b.String()))
 }
 
+// For Lua interaction:
+func (bc *BytecodeContext) PushConstantI(integer int) {
+	bc.PushConstant(integer)
+}
+
 func (bc *BytecodeContext) PushConstant(constant interface{}) {
 	float, ok := constant.(float64)
 	if ok {

@@ -567,7 +567,11 @@ function Compiler:ResolveConstant(constant)
     if not index then
         index = self.constantIndex
         self.constantMap[constant] = index
-        self.bytes.PushConstant(constant)
+        if type(constant) == "number" then
+            self.bytes.PushConstantI(constant)
+        else 
+            self.bytes.PushConstant(constant)
+        end
         self.constantIndex = self.constantIndex + 1
     end
     return index
@@ -792,7 +796,8 @@ end
 function SNodes.Store(C, schemaName, values)
     local nextPass = resolvePass(C, values)
     return function() local schema = goal.SchemaFromName(schemaName)
-        assert(#values == schema.FieldLength(), "Wrong argument number to Store!")
+        local got, expected = #values, schema.FieldLength()
+        assert(got == expected, "Wrong argument number to Store! Got " ..  got .. " wanted " .. expected)
         resolvePass(C, nextPass, true)
         C.Compile12_3("BC_SAVE_TUPLE", schema.Id, schema.FieldLength())
     end
@@ -855,7 +860,7 @@ end
 
 function exprs.var(C, repr) return C.ResolveObjectRef(repr) end
 
-function exprs.constant(C, val) return function() C.CompileConstant(val) end end
+function exprs.Constant(C, val) return function() C.CompileConstant(val) end end
 
 local function unaryOp(op) return function(C, val)
     val = goal.ExprParse(val)(C) ; return function() val(C) ; C.Compile123("BC_UNARY_OP", op) end
@@ -968,7 +973,7 @@ end end
 
 -- Various constants
 
-local function constantN(val) return simpleNode("constant", val) end
+function Constant(val) return simpleNode("Constant", val) end
 
 function FindFiles(dir, --[[Optional]] filter)
     local args = {}
@@ -985,13 +990,20 @@ function FindPackages(dir, --[[Optional]] filter)
 end
 
 
-function DataSet(dbKind, fileName) goal.OpenConnection(dbKind, fileName, --[[Remove previous]] true) end
+function DataSet(dbKind, fileName, --[[Optional, default true]] removePrevious) 
+    removePrevious = removePrevious or (removePrevious == nil)
+    goal.OpenConnection(dbKind, fileName, removePrevious)
+end
+
 DataClose = goal.CloseConnection ; DataCommit = goal.Commit
 
 function DataQuery(...)
     local ret = {} ; local columns,results = goal.Query(...)
     for i, result in ipairs(results) do
         ret[i] = {} ; for j, subresult in ipairs(result) do
+            if type(subresult) == "userdata" then
+                subresult = goal.BytesToString(subresult)
+            end
             ret[i][columns[j]] = subresult 
         end
     end ; return ret
@@ -1009,7 +1021,7 @@ function DataExec(execStr, ...)
 	return res
 end
 
-True, False = constantN(true), constantN(false)
+True, False = Constant(true), Constant(false)
 Otherwise = True ; Always = True
  -- Expose all object members
 for i=1,#goal.TypeInfo.TypeMembers do

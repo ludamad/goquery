@@ -47,6 +47,6 @@ local queryTemplate = ([[
 local results = DataQuery(queryTemplate:format(interface_types, subexpr1, subexpr2))
 
 for result in values(results) do
-    print("Type '" .. goal.BytesToString(result.name) .. "' satisfies '" .. goal.BytesToString(result.iname) .. "'")
+    print("Type '" .. result.name .. "' satisfies '" .. result.iname .. "'")
 end
 

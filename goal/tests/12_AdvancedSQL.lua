@@ -70,7 +70,7 @@ local function dumpSatisfications(files)
     ]]
     
     for result in values(results) do
-        print("Type '" .. goal.BytesToString(result.tname) .. "' satisfies '" .. goal.BytesToString(result.iface) .. "'")
+        print("Type '" .. result.tname .. "' satisfies '" .. result.iface .. "'")
     end
     print("Query took " .. goal.CurrentTime().Sub(t).Nanoseconds()/1000/1000 .. "ms")
 end

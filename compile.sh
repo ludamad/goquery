@@ -34,17 +34,16 @@ cp ./goal/extra/*.lua "./.libs/"
 
 cp -r "./dependencies/lua-repl/repl/" "./.libs/"
 cp "./dependencies/lua-repl/repl.lua" "./.libs/repl.lua"
+cp ./dependencies/*.lua "./.libs/"
 
 # Install necessary library files in .libs:
 make_lib "./dependencies/lua-yaml" "yaml.so"
 make_lib "./dependencies/lua-linenoise" "linenoise.so"
 make_lib "./dependencies/LuaJIT-2.0.2" "src/libluajit.a"
 
-# Rename for golua:
-cp ".libs/libluajit.a" ".libs/liblua.a" 
-
 # Go dependencies:
 for pkg in \
+    github.com/aarzilli/golua/lua \
     github.com/mattn/go-sqlite3 \
     github.com/stevedonovan/luar \
     github.com/shavac/readline \
