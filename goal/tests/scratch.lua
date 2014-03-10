@@ -1,23 +1,15 @@
-local FuncDeclNode = class()
+--------------------------------------------------------------------------------
+-- Configuration
+--------------------------------------------------------------------------------
 
-function FuncDeclNode:emit_event()
-    EventCase(FuncDecl "n") (receiver "n")(
-    ) (Otherwise) (
-        Store "functions" (Tag, id "n", location "n", name "n", type "n", Body.id "n")
-    )
+local config = {
+    store_comments = true,
+    store_location = true
+}
 
-    Event(BlockStmt "n") (
-        ForPairs "k" "v" (List "n") (
-            Store "blocks" (Tag, id "n", location "n", var "k", id "v")
-        )
-    )
-
-
-local SimpleNode = class()
-
-function SimpleNode:emit_event() 
-
-end
+--------------------------------------------------------------------------------
+-- Helpers
+--------------------------------------------------------------------------------
 
 local function nodeData(name) return function(...)
     Data(name) (
@@ -27,6 +19,55 @@ local function nodeData(name) return function(...)
         ...
     )
 end end
+
+--------------------------------------------------------------------------------
+-- Node handler classes
+--------------------------------------------------------------------------------
+
+local FuncDeclNode = newtype()
+
+function FuncDeclNode:create_table()
+    nodeData "functions" (
+        "name", 
+        "type",
+        "block_tag:INTEGER" 
+    )
+end
+
+function FuncDeclNode:create_table()
+
+end
+
+function FuncDeclNode:emit_event(Tag)
+    EventCase(FuncDecl "n") (receiver "n")(
+    ) (Otherwise) (
+        Store "functions" (Tag, id "n", location "n", name "n", type "n", Body.id "n")
+    )
+end
+
+local BlockStmtNode = class()
+
+function FuncDeclNode:create_table()
+    nodeData "blocks" (
+        Key "entry_num:INTEGER", 
+        "entry_tag:INTEGER"
+    )
+end
+
+function BlockStmtNode:emit_event(Tag)
+    Event(BlockStmt "n") (
+        ForPairs "k" "v" (List "n") (
+            Store "blocks" (Tag, id "n", location "n", var "k", id "v")
+        )
+    )
+end
+
+
+local SimpleNode = class()
+
+function SimpleNode:emit_event() 
+
+end
 
 local function compileEvent(Tag, evName, data, children, --[[Optional]] optional)
     optional = optional or {} 
@@ -41,9 +82,11 @@ local function compileEvent(Tag, evName, data, children, --[[Optional]] optional
 
     -- Define an event to dump into the database:
     local tuple_elems = {}
-    for i,v in ipairsAll(data, children, optional) do
+    for i,v in ipairsAll(data) do
+    end
+    for i,v in children, optional) do
         local getter = _G[v] 
-        append(tuple_elems, getter "n") 
+        append(tuple_elems, getter.id "n") 
     end
     local event = _G[evName]
     Event (event "n") (
