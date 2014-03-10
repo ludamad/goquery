@@ -75,4 +75,5 @@ const (
 	SMEMBER_name
 	SMEMBER_receiver
 	SMEMBER_id
+	SMEMBER_tostring
 )

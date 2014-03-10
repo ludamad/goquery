@@ -148,6 +148,7 @@ var _API luar.Map = luar.Map{
 	"SMEMBER_location": SMEMBER_location,
 	"SMEMBER_type":     SMEMBER_type,
 	"SMEMBER_id":       SMEMBER_id,
+	"SMEMBER_tostring": SMEMBER_tostring,
 
 	"BIN_OP_AND":       BIN_OP_AND,
 	"BIN_OP_OR":        BIN_OP_OR,

@@ -176,15 +176,12 @@ func makeIntRef(value interface{}) goalRef {
 func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) goalRef {
 	n := bc.Get(objIdx)
 
-	if memberIdx == SMEMBER_id {
-		if n.Value == nil {
-			return makeStrRef(nil)
-		}
-		return makeIntRef(bc.GetObjectId(n.Value.(ast.Node)))
+	if n.Value == nil {
+		return makeStrRef(nil)
 	}
 
-	if n.Value == nil {
-		return makeStrRef("")
+	if memberIdx == SMEMBER_id {
+		return makeIntRef(bc.GetObjectId(n.Value.(ast.Node)))
 	}
 
 	if memberIdx == SMEMBER_type {
@@ -249,6 +246,10 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 
 	if memberIdx == SMEMBER_type {
 		return makeStrRef(nil)
+	}
+
+	if memberIdx == SMEMBER_tostring {
+		return makeStrRef(n.Value.(fmt.Stringer).String())
 	}
 	panic("resolveSpecialMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())
 }

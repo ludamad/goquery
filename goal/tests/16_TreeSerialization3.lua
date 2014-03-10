@@ -51,7 +51,7 @@ local function main()
     init()
     
     for result in values(DataQuery [[
-        select * from functions
+        select * from FuncDecl
     ]]) do
         pretty_print(result)
     end

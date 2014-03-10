@@ -49,17 +49,22 @@ local FuncDeclNode = newtype()
 function FuncDeclNode:init() end
 
 function FuncDeclNode:create_table()
-    nodeData "functions" (
+    nodeData "FuncDecl" (
         "name", 
+        "receiver",
         "type",
         "block_id:INTEGER" 
     )
 end
 
 function FuncDeclNode:emit_event(Tag)
-    EventCase(FuncDecl "n") (receiver "n") (
-    )(Otherwise) (
-        Store "functions" (Tag, id "n", location "n", name "n", type "n", Body.id "n")
+    Event(FuncDecl "n") (
+--        Printf(">> FUNCDECL Tag=%v Id=%v Loc=%v Name=%v Recv=%v %v %v\n", Tag, id "n", location "n", name "n", receiver.type "n",  type "n", Body.id "n"),
+        Store "FuncDecl" (
+            Tag, id "n", location "n", -- Standard
+            name "n", receiver.type "n", 
+            type "n", Body.id "n"
+        )
     )
 end
 
@@ -118,7 +123,7 @@ end
 --------------------------------------------------------------------------------
 
 local node_types = {
-  FuncDeclNode.create()
+    FuncDeclNode.create()
 }
 
 local schemas = {}
@@ -172,7 +177,11 @@ Link "SliceExpr" ("X", "Low", "High", "Max")
 Link "TypeAssertExpr" ("X")
 Link "StarExpr" ("X")
 Link "UnaryExpr" ("X")
+DataDef "UnaryExpr" ("Op.tostring")
+
 Link "BinaryExpr" ("X", "Y")
+DataDef "BinaryExpr" ("Op.tostring")
+
 Link "KeyValueExpr" ("Key", "Value")
 Link "RangeStmt" ("Key", "Value", "X", "Body")
 
@@ -207,6 +216,8 @@ Link "ForStmt" ("Init", "Cond", "Post", "Body")
 
 -- Specifications
 Link "TypeSpec" ("Type")
+DataDef "TypeSpec" ("name")
+
 Link "ImportSpec" ("Doc", "Name", "Path", "Comment")
 
 ListLink "ValueSpec" ("Names", "Values")
