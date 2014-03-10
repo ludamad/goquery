@@ -67,12 +67,6 @@ local function defineEvents(tag)
             Store "blocks" (Tag, id "n", location "n", var "k", id "v")
         )
     )
-
---    Event(BlockStmt "n") (
---        ForPairs "k" "v" (List "n") (
---            Store "blocks" (Tag, id "n", location "n", var "k", id "v")
---        )
---    )
 end
 
 --------------------------------------------------------------------------------
