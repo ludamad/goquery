@@ -3,8 +3,7 @@ require "goal"
 local function installEvent(evStr)
     local eventType = _G[evStr]
     Event(eventType "n") (
-        Printf("%s %s: "..evStr.." child\n", RepeatString("  ", NodeDepth()), location "n")
-
+        Printf("%s %s: "..evStr.." ID=<%d>\n", RepeatString("  ", NodeDepth()), location "n", id "n")
     )
 end
 

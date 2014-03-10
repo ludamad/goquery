@@ -1,4 +1,5 @@
 package.path = package.path .. ';./.libs/?.lua'
+package.cpath = package.cpath .. ';./.libs/?.so'
 
 require "goal"
 require "ErrorReporting"

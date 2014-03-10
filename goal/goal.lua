@@ -996,6 +996,19 @@ function DataQuery(...)
         end
     end ; return ret
 end
+
+function DataExec(execStr, ...) 
+	local db = gsym.DB
+	local statement, err = db.Prepare(execStr)
+	if err then error(err) end
+	local tx, err = db.Begin()
+	if err then error(err) end
+	local res, err = tx.Stmt(statement).Exec(...)
+	if err then error(err) end
+	tx.Commit()
+	return res
+end
+
 True, False = constantN(true), constantN(false)
 Otherwise = True ; Always = True
  -- Expose all object members

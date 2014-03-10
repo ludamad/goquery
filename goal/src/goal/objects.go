@@ -1,14 +1,14 @@
 package goal
 
 import (
+	"fmt"
 	"go/ast"
 	"reflect"
 	"strconv"
-	"fmt"
 )
 
 type typeTable struct {
-	name string
+	name          string
 	memberTypes   []*typeTable
 	memberIndices [][]int
 }
@@ -44,12 +44,12 @@ func makeTypeTable(tInfo *typeInfo, typ reflect.Type) {
 type typeInfo struct {
 	typeTables       map[reflect.Type]*typeTable
 	stringTypeTable  *typeTable
-	boolTypeTable  *typeTable
+	boolTypeTable    *typeTable
 	fieldTypeTable   *typeTable
-	intTypeTable   *typeTable
+	intTypeTable     *typeTable
 	TypeMembers      []string
 	stringToMemberId map[string]int
-	NameToType map[string]reflect.Type
+	NameToType       map[string]reflect.Type
 }
 
 func makeTypeInfo() typeInfo {
@@ -205,6 +205,9 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 			return makeStrRef(bc.File.Name.Name + "." + node.Name.Name) // A beauty
 		}
 	}
+	if memberIdx == SMEMBER_id {
+		return makeIntRef(bc.GetObjectId(n.Value.(ast.Node)))
+	}
 	if memberIdx == SMEMBER_location {
 		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
 	}
@@ -224,4 +227,3 @@ func (bc *BytecodeExecContext) resolveObjectMember(objIdx int, memberIdx int) go
 	typ := ref.memberTypes[memberIdx]
 	return goalRef{typ, reflect.Indirect(reflect.ValueOf(ref.Value)).FieldByIndex(idx).Interface()}
 }
- 

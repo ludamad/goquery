@@ -2,6 +2,7 @@ package goal
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 )
 
@@ -11,10 +12,10 @@ type field struct {
 }
 
 type DataSchema struct {
-	Id         int
-	Name       string
-	Fields     []field
-	Keys       []string
+	Id     int
+	Name   string
+	Fields []field
+	Keys   []string
 }
 
 func (schema *DataSchema) FieldLength() int { return len(schema.Fields) }
@@ -30,20 +31,27 @@ type DataContext struct {
 }
 
 func MakeDataContext() *DataContext {
-	return &DataContext{&DatabaseContext{nil,nil, map[int]*sql.Stmt{}}, []DataSchema{}}
+	return &DataContext{&DatabaseContext{nil, nil, map[int]*sql.Stmt{}}, []DataSchema{}}
 }
 
-func (s *DataContext) DefineData(name string, fieldNames, keys []string ) int {
+func (s *DataContext) DefineData(name string, fieldNames, keys []string) int {
 	fields := []field{}
+	filteredKeys := []string{}
+
+	for _, key := range keys {
+		filteredKeys = append(filteredKeys, strings.Split(key, ":")[0])
+	}
+
 	for _, fname := range fieldNames {
 		parts := strings.Split(fname, ":")
 		typ := "TEXT" // Default to 'string' type
 		if len(parts) >= 2 {
 			typ = parts[1]
 		}
-		fields = append(fields, field {parts[0], typ})
-	} 
-	schema := makeSchema(len(s.Schemas), name, fields, keys)
+		fmt.Print(parts[0], typ)
+		fields = append(fields, field{parts[0], typ})
+	}
+	schema := makeSchema(len(s.Schemas), name, fields, filteredKeys)
 	s.Schemas = append(s.Schemas, schema)
 	schema.CreateTable(s.DatabaseContext)
 	return len(s.Schemas) - 1

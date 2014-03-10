@@ -3,10 +3,10 @@ package goal
 import (
 	"code.google.com/p/go.tools/go/types"
 	"fmt"
-	"os"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"time"
 )
 
@@ -16,6 +16,7 @@ type GlobalSymbolContext struct {
 	Events        *EventContext
 	Info          *types.Info
 	NameToAstFile map[string]*ast.File
+	idContext     nodeIDContext
 }
 
 func NewGlobalContext() *GlobalSymbolContext {
@@ -25,7 +26,8 @@ func NewGlobalContext() *GlobalSymbolContext {
 	info.Objects = make(map[*ast.Ident]types.Object)
 	info.Scopes = make(map[ast.Node]*types.Scope)
 	info.InitOrder = []*types.Initializer{}
-	return &GlobalSymbolContext{MakeDataContext(), token.NewFileSet(), NewEventContext(), info, map[string]*ast.File{}}
+	idContext := nodeIDContext{map[ast.Node]int{}, 0}
+	return &GlobalSymbolContext{MakeDataContext(), token.NewFileSet(), NewEventContext(), info, map[string]*ast.File{}, idContext}
 }
 
 func (context *GlobalSymbolContext) FileList() []*ast.File {
@@ -64,21 +66,21 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 	}
 }
 
-func isDirectory(path string) (bool) {
+func isDirectory(path string) bool {
 	f, err := os.Stat(path)
 	if err == nil {
-		return f.Mode().IsDir()		
-	}	
+		return f.Mode().IsDir()
+	}
 	return false
 }
 
 func (context *GlobalSymbolContext) ParseAndInferTypes(filename string) {
 	if isDirectory(filename) {
 		// File set aggregates all token information for all our files
-		pkgs, err := parser.ParseDir(context.FileSet, filename, func(os.FileInfo) bool {return true}, parser.AllErrors)
+		pkgs, err := parser.ParseDir(context.FileSet, filename, func(os.FileInfo) bool { return true }, parser.AllErrors)
 		if err != nil {
 			fmt.Println("Problem in ParseAndInferTypes:\n", err)
-			return;
+			return
 		}
 		for pkgName, pkg := range pkgs {
 			files := []*ast.File{}
@@ -93,7 +95,7 @@ func (context *GlobalSymbolContext) ParseAndInferTypes(filename string) {
 		file, err := parser.ParseFile(context.FileSet, filename, nil, parser.AllErrors)
 		if err != nil {
 			fmt.Println("Problem in ParseAndInferTypes:\n", err)
-			return;
+			return
 		}
 		context.NameToAstFile[filename] = file
 		context.inferTypes(file.Name.Name, []*ast.File{file})
@@ -117,17 +119,19 @@ func (context *GlobalSymbolContext) FileContextMap() map[string]*FileSymbolConte
 	return m
 }
 
-
 type nodeIDContext struct {
 	nodeToObjectID map[ast.Node]int
-	nodeCount int
+	nodeCount      int
 }
 
 // Returns a unique (within the current session!) ID for the object:
-func (context *FileSymbolContext) GetObjectId(node ast.Node) int {
+func (context *GlobalSymbolContext) GetObjectId(node ast.Node) int {
 	N := &context.idContext.nodeToObjectID
+	C := &context.idContext.nodeCount
 	val, ok := (*N)[node]
 	if !ok {
+		(*C)++
+		val = *C
 		(*N)[node] = val
 	}
 	return val
@@ -136,12 +140,10 @@ func (context *FileSymbolContext) GetObjectId(node ast.Node) int {
 type FileSymbolContext struct {
 	File      *ast.File
 	TokenFile *token.File
-	idContext nodeIDContext
 }
 
 func NewFileSymbolContext(file *ast.File, tokenFile *token.File) *FileSymbolContext {
-	idContext := nodeIDContext {map[ast.Node]int{}, 0}
-	return &FileSymbolContext {file, tokenFile, idContext}
+	return &FileSymbolContext{file, tokenFile}
 }
 
 func (fileSym *FileSymbolContext) PositionString(node ast.Node) string {

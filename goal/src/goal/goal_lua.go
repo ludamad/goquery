@@ -5,10 +5,10 @@ import (
 	"github.com/aarzilli/golua/lua"
 	"github.com/shavac/readline"
 	"github.com/stevedonovan/luar"
+	"go/build"
 	"io/ioutil"
 	"runtime/debug"
 	"strings"
-	"go/build"
 	"time"
 )
 
@@ -53,7 +53,7 @@ func findFilesAux(extension string, dir string, fnames []string) []string {
 		if shouldMatchDir && file.IsDir() {
 			isMatch = true
 		} else if !shouldMatchDir && len(fname) > len(extension) {
-			expectedLoc := len(fname)- len(extension)
+			expectedLoc := len(fname) - len(extension)
 			isMatch = (strings.Index(fname, extension) == expectedLoc)
 		}
 		if isMatch {
@@ -108,27 +108,27 @@ var _API luar.Map = luar.Map{
 	"FindSubdirectories": findSubdirectories,
 	"NullFileContext":    NewFileSymbolContext(nil, nil),
 	// See codes.go for details:
-	"CurrentTime":     time.Now,
-	"BC_CONSTANT":     BC_CONSTANT,
-	"BC_PUSH":         BC_PUSH,
-	"BC_PUSH_NIL":     BC_PUSH_NIL,
-	"BC_NEXT":         BC_NEXT,
-	"BC_MEMBER_PUSH":  BC_MEMBER_PUSH,
-	"BC_SPECIAL_PUSH": BC_SPECIAL_PUSH,
-	"BC_POPN":         BC_POPN,
-	"BC_CONCATN":      BC_CONCATN,
-	"BC_SAVE_TUPLE":   BC_SAVE_TUPLE,
-	"BC_JMP_FALSE":    BC_JMP_FALSE,
-	"BC_PUSH_PARENT":    BC_PUSH_PARENT,
-	"BC_PUSH_NODE_DEPTH":    BC_PUSH_NODE_DEPTH,
-	"BC_BIN_OP":       BC_BIN_OP,
-	"ColorPrint":      colorPrint,
-	"BC_UNARY_OP":     BC_UNARY_OP,
-	"BC_JMP":          BC_JMP,
-	"BuildContext":    build.Default,
-	"BC_PRINTFN":      BC_PRINTFN,
-	"BC_SPRINTFN":     BC_SPRINTFN,
-	"BytesToString":   bytesToString,
+	"CurrentTime":        time.Now,
+	"BC_CONSTANT":        BC_CONSTANT,
+	"BC_PUSH":            BC_PUSH,
+	"BC_PUSH_NIL":        BC_PUSH_NIL,
+	"BC_NEXT":            BC_NEXT,
+	"BC_MEMBER_PUSH":     BC_MEMBER_PUSH,
+	"BC_SPECIAL_PUSH":    BC_SPECIAL_PUSH,
+	"BC_POPN":            BC_POPN,
+	"BC_CONCATN":         BC_CONCATN,
+	"BC_SAVE_TUPLE":      BC_SAVE_TUPLE,
+	"BC_JMP_FALSE":       BC_JMP_FALSE,
+	"BC_PUSH_PARENT":     BC_PUSH_PARENT,
+	"BC_PUSH_NODE_DEPTH": BC_PUSH_NODE_DEPTH,
+	"BC_BIN_OP":          BC_BIN_OP,
+	"ColorPrint":         colorPrint,
+	"BC_UNARY_OP":        BC_UNARY_OP,
+	"BC_JMP":             BC_JMP,
+	"BuildContext":       build.Default,
+	"BC_PRINTFN":         BC_PRINTFN,
+	"BC_SPRINTFN":        BC_SPRINTFN,
+	"BytesToString":      bytesToString,
 	"NewObjectStack": func(objs ...interface{}) *goalStack {
 		gs := &goalStack{}
 		for _, obj := range objs {
@@ -147,6 +147,7 @@ var _API luar.Map = luar.Map{
 	"SMEMBER_name":     SMEMBER_name,
 	"SMEMBER_location": SMEMBER_location,
 	"SMEMBER_type":     SMEMBER_type,
+	"SMEMBER_id":       SMEMBER_id,
 
 	"BIN_OP_AND":       BIN_OP_AND,
 	"BIN_OP_OR":        BIN_OP_OR,
@@ -154,7 +155,7 @@ var _API luar.Map = luar.Map{
 	"BIN_OP_INDEX":     BIN_OP_INDEX,
 	"BIN_OP_CONCAT":    BIN_OP_CONCAT,
 	"BIN_OP_TYPECHECK": BIN_OP_TYPECHECK,
-	"BIN_OP_REPEAT": BIN_OP_REPEAT,
+	"BIN_OP_REPEAT":    BIN_OP_REPEAT,
 	"BIN_OP_EQUAL":     BIN_OP_EQUAL,
 
 	"UNARY_OP_NOT": UNARY_OP_NOT,
@@ -164,9 +165,9 @@ var _API luar.Map = luar.Map{
 func NewGoalLuaContext(namespace string) *lua.State {
 	L := luar.Init()
 	luar.Register(L, namespace, _API)
-	luar.Register(L, "", luar.Map {
+	luar.Register(L, "", luar.Map{
 		"ColorPrint": colorPrint,
-		"Colorify": colorify,
+		"Colorify":   colorify,
 	})
 	return L
 }

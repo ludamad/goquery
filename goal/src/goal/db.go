@@ -126,13 +126,15 @@ func sqlCheckName(name string) {
 }
 
 func (ds *DataSchema) CreateTable(context *DatabaseContext) {
+	fmt.Println("HERE")
 	sqlCheckName(ds.Name) // Be a little safer about string interpolation
 	fieldSchema := []string{}
 	for _, f := range ds.Fields {
 		sqlCheckName(f.Name)
-		fieldSchema = append(fieldSchema, f.Name+" "+ f.Type)
+		fieldSchema = append(fieldSchema, f.Name+" "+f.Type)
 	}
 	sql := fmt.Sprintf("CREATE TABLE %s(%s, PRIMARY KEY (%s))", ds.Name, strings.Join(fieldSchema, ","), strings.Join(ds.Keys, ","))
+	fmt.Println(sql)
 	_, err := context.DB.Exec(sql)
 	if err != nil {
 		panic(err)

@@ -22,43 +22,68 @@ func (bc *BytecodeExecContext) sprintN(n int) string {
 }
 
 func isTrueValue(val interface{}) bool {
-	return (val == nil || val == false || val == "");
+	return (val == nil || val == false || val == "")
 }
 
 func (bc BytecodeExecContext) resolveUnaryOp(id int, val goalRef) goalRef {
 	switch id {
-		case UNARY_OP_NOT: return makeBoolRef(!isTrueValue(val)) 
-		case UNARY_OP_LEN: return makeIntRef(reflect.ValueOf(val.Value).Len())
-		case UNARY_OP_GETID: return makeIntRef(reflect.ValueOf(val.Value).Len())  
+	case UNARY_OP_NOT:
+		return makeBoolRef(!isTrueValue(val))
+	case UNARY_OP_LEN:
+		return makeIntRef(reflect.ValueOf(val.Value).Len())
 	}
 	panic("Unexpected unary op")
 }
 
 func (bc BytecodeExecContext) resolveBinOp(id int, val1 goalRef, val2 goalRef) goalRef {
 	switch id {
-		case BIN_OP_AND: if !isTrueValue(val1.Value) { return val1 } else {return val2 }
-		case BIN_OP_OR: if isTrueValue(val1.Value) { return val1 } else {return val2 }
-		case BIN_OP_XOR: if isTrueValue(val1.Value) != isTrueValue(val2.Value) { return makeBoolRef(true) } else {makeBoolRef(false) }
-		case BIN_OP_TYPECHECK: if resolveType(val2.Value) == val1.Value.(reflect.Type) { return makeBoolRef(true) } else {return makeBoolRef(false) }
-		case BIN_OP_INDEX: return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
-		case BIN_OP_CONCAT: return makeStrRef(val1.Value.(string) + val2.Value.(string))
-		case BIN_OP_EQUAL: return makeBoolRef(val1.Value == val2.Value)
-		case BIN_OP_REPEAT: 
-			str := val1.Value.(string)
-			num := val2.Value.(int)
-			result := ""
-			for i := 0; i < num; i++ {
-				result += str
-			}
-			return makeStrRef(result)
+	case BIN_OP_AND:
+		if !isTrueValue(val1.Value) {
+			return val1
+		} else {
+			return val2
+		}
+	case BIN_OP_OR:
+		if isTrueValue(val1.Value) {
+			return val1
+		} else {
+			return val2
+		}
+	case BIN_OP_XOR:
+		if isTrueValue(val1.Value) != isTrueValue(val2.Value) {
+			return makeBoolRef(true)
+		} else {
+			makeBoolRef(false)
+		}
+	case BIN_OP_TYPECHECK:
+		if resolveType(val2.Value) == val1.Value.(reflect.Type) {
+			return makeBoolRef(true)
+		} else {
+			return makeBoolRef(false)
+		}
+	case BIN_OP_INDEX:
+		return makeGoalRef(reflect.ValueOf(val1.Value).Index(val2.Value.(int)).Interface())
+	case BIN_OP_CONCAT:
+		return makeStrRef(val1.Value.(string) + val2.Value.(string))
+	case BIN_OP_EQUAL:
+		return makeBoolRef(val1.Value == val2.Value)
+	case BIN_OP_REPEAT:
+		str := val1.Value.(string)
+		num := val2.Value.(int)
+		result := ""
+		for i := 0; i < num; i++ {
+			result += str
+		}
+		return makeStrRef(result)
 	}
 	panic("Unexpected bin op")
 }
 
 func dumpStack(refs []goalRef) {
-	for i,ref := range refs {
+	for i, ref := range refs {
 		if ref.Value == nil {
-			fmt.Printf("\t%d) nil\n", i) } else {
+			fmt.Printf("\t%d) nil\n", i)
+		} else {
 			fmt.Printf("\t%d) %s\n", i, resolveType(ref.Value).Name())
 		}
 	}
@@ -84,11 +109,12 @@ func (bc *BytecodeExecContext) execOne() bool {
 	case BC_POPN:
 		bc.PopN(code.Bytes1to3())
 	case BC_NEXT:
-		obj,idxObj,idx := bc.Peek(2), bc.Peek(1),0
+		obj, idxObj, idx := bc.Peek(2), bc.Peek(1), 0
 		if idxObj.Value != nil {
 			idx = idxObj.Value.(int)
 		}
-		bc.PopN(1) ; val := reflect.ValueOf(obj.Value)
+		bc.PopN(1)
+		val := reflect.ValueOf(obj.Value)
 		if val.Type().Kind() != reflect.Slice {
 			panic("Can only iterate over slices!")
 		}
@@ -96,7 +122,7 @@ func (bc *BytecodeExecContext) execOne() bool {
 			bc.PopN(1)
 			bc.Index = code.Bytes1to3()
 		} else {
-			bc.Push(makeIntRef(idx+1))
+			bc.Push(makeIntRef(idx + 1))
 			bc.Push(makeGoalRef(val.Index(idx).Interface()))
 		}
 	case BC_CONCATN:
@@ -112,7 +138,7 @@ func (bc *BytecodeExecContext) execOne() bool {
 		bc.PopN(1)
 	case BC_BIN_OP:
 		obj := bc.resolveBinOp(code.Bytes1to3(), bc.Peek(2), bc.Peek(1))
-		bc.PopN(2);
+		bc.PopN(2)
 		bc.Push(obj)
 	case BC_UNARY_OP:
 		obj := bc.resolveUnaryOp(code.Bytes1to3(), bc.Peek(1))
@@ -161,7 +187,7 @@ func (bc *BytecodeExecContext) exec() goalRef {
 func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goalRef {
 	oldLen := len(*bc.goalStack)
 
-	chain := nodeParentChain{nil,nil, 0}
+	chain := nodeParentChain{nil, nil, 0}
 	bcCopy := BytecodeExecContext{bc.BytecodeContext, bc.GlobalSymbolContext, bc.FileSymbolContext, bc.goalStack, chain, len(*bc.goalStack) - nargs, 0}
 	retVal := bcCopy.exec()
 	bc.PopN(len(*bcCopy.goalStack) - oldLen)
@@ -169,7 +195,7 @@ func (bc *BytecodeExecContext) call(subroutine *BytecodeContext, nargs int) goal
 }
 
 func (bc *BytecodeContext) ExecNoParent(globSym *GlobalSymbolContext, fileSym *FileSymbolContext, stack *goalStack) {
-	chain := nodeParentChain{nil,nil,0}
+	chain := nodeParentChain{nil, nil, 0}
 	bc.Exec(globSym, fileSym, stack, chain)
 }
 

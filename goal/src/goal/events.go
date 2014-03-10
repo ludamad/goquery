@@ -25,17 +25,17 @@ type nodeRoot struct {
 }
 
 type nodeParentChain struct {
-	node ast.Node
+	node   ast.Node
 	parent *nodeParentChain
-	depth int
+	depth  int
 }
 
 type traverseContext struct {
 	*EventContext
-	chain nodeParentChain
+	chain   nodeParentChain
 	globSym *GlobalSymbolContext
 	file    *FileSymbolContext
-	stack *goalStack
+	stack   *goalStack
 }
 
 func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
@@ -43,10 +43,10 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 		return ev
 	}
 	evChild := *ev
-	evChild.chain = nodeParentChain {n, &ev.chain, ev.chain.depth + 1}
+	evChild.chain = nodeParentChain{n, &ev.chain, ev.chain.depth + 1}
 	bcList := ev.Events[reflect.TypeOf(n).Elem()]
 	if bcList != nil {
-		for _, bc := range(bcList) {
+		for _, bc := range bcList {
 			(*ev.stack)[0] = makeGoalRef(n)
 			bc.Exec(ev.globSym, ev.file, ev.stack, ev.chain)
 			if len(*ev.stack) > 1 {
@@ -59,7 +59,7 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 
 func (ev *EventContext) Analyze(globSym *GlobalSymbolContext, fileSym *FileSymbolContext) {
 
-	chain := nodeParentChain{nil,nil, 0}
+	chain := nodeParentChain{nil, nil, 0}
 	tcontext := traverseContext{ev, chain, globSym, fileSym, &goalStack{makeStrRef(nil)}}
 	ast.Walk(&tcontext, fileSym.File)
 }
