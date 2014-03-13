@@ -248,7 +248,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		return makeStrRef(nil)
 	}
 
-	if memberIdx == SMEMBER_tostring {
+	if memberIdx == SMEMBER_stringify {
 		return makeStrRef(n.Value.(fmt.Stringer).String())
 	}
 	panic("resolveSpecialMember received unknown memberIdx " + strconv.Itoa(memberIdx) + " for " + reflect.TypeOf(n.Value).String())

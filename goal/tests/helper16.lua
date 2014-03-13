@@ -177,10 +177,10 @@ Link "SliceExpr" ("X", "Low", "High", "Max")
 Link "TypeAssertExpr" ("X")
 Link "StarExpr" ("X")
 Link "UnaryExpr" ("X")
-DataDef "UnaryExpr" ("Op.tostring")
+DataDef "UnaryExpr" ("Op.stringify")
 
 Link "BinaryExpr" ("X", "Y")
-DataDef "BinaryExpr" ("Op.tostring")
+DataDef "BinaryExpr" ("Op.stringify")
 
 Link "KeyValueExpr" ("Key", "Value")
 Link "RangeStmt" ("Key", "Value", "X", "Body")
