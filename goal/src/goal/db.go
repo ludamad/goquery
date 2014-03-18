@@ -10,37 +10,56 @@ import (
 	"strings"
 )
 
-type DatabaseContext struct {
-	DB                *sql.DB
-	insertTransaction *sql.Tx
-	insertStatements  map[int]*sql.Stmt
+type DatabaseBuffer struct {
+	stmt string
+	data [][]interface{}
 }
 
-func (context *DatabaseContext) makeInsertStatement(name string, fields []field) *sql.Stmt {
-	if context.insertTransaction == nil { // Make sure we have an action transaction
-		tx, err := context.DB.Begin()
-		if err != nil {
-			panic(err)
-		}
-		context.insertTransaction = tx
-	}
-	// Assumes at least one arg in 'args':
-	marks := "?" + strings.Repeat(", ?", len(fields)-1)
-	sql := "INSERT INTO " + name + " values(" + marks + ")"
-	stmt, err := context.insertTransaction.Prepare(sql)
+type DatabaseContext struct {
+	DB            *sql.DB
+	insertBuffers map[int]*DatabaseBuffer
+}
+
+func (context *DatabaseContext) commit(buff *DatabaseBuffer, insertTransaction *sql.Tx) {
+	stmt, err := insertTransaction.Prepare(buff.stmt)
 	if err != nil {
 		panic(err)
 	}
-	return stmt
+	for _, dat := range buff.data {
+		stmt.Exec(dat...)
+	}
+	stmt.Close()
 }
 
-func (context *DatabaseContext) GetInsertStatement(ds *DataSchema) *sql.Stmt {
-	stmt := context.insertStatements[ds.Id]
-	if stmt == nil {
-		stmt = context.makeInsertStatement(ds.Name, ds.Fields)
-		context.insertStatements[ds.Id] = stmt
+func (context *DatabaseContext) Commit() {
+	if context.DB == nil {
+		return
 	}
-	return stmt
+	tx, err := context.DB.Begin()
+	if err != nil {
+		panic(err)
+	}
+	for _, buffer := range context.insertBuffers {
+		context.commit(buffer, tx)
+	}
+	context.insertBuffers = map[int]*DatabaseBuffer{}
+	tx.Commit()
+}
+
+func (context *DatabaseContext) makeDatabaseBuffer(name string, fields []field) *DatabaseBuffer {
+	// Assumes at least one arg in 'args':
+	marks := "?" + strings.Repeat(", ?", len(fields)-1)
+	sql := "INSERT INTO " + name + " values(" + marks + ")"
+	return &DatabaseBuffer{sql, [][]interface{}{}}
+}
+
+func (context *DatabaseContext) GetInsertBuffer(ds *DataSchema) *DatabaseBuffer {
+	buffer := context.insertBuffers[ds.Id]
+	if buffer == nil {
+		buffer = context.makeDatabaseBuffer(ds.Name, ds.Fields)
+		context.insertBuffers[ds.Id] = buffer
+	}
+	return buffer
 }
 
 // Database connection and insertion functions:
@@ -69,16 +88,6 @@ func (context *DatabaseContext) CloseConnection() {
 	}
 }
 
-func (context *DatabaseContext) Commit() {
-	for i, stmt := range context.insertStatements {
-		stmt.Close()
-		delete(context.insertStatements, i)
-	}
-	if context.insertTransaction != nil {
-		context.insertTransaction.Commit()
-		context.insertTransaction = nil
-	}
-}
 func (context *DataContext) DropAllData() {
 	context.Commit()
 	for _, s := range context.Schemas {
@@ -142,5 +151,6 @@ func (ds *DataSchema) CreateTable(context *DatabaseContext) {
 }
 
 func (ds *DataSchema) Insert(context *DatabaseContext, fieldData []interface{}) {
-	context.GetInsertStatement(ds).Exec(fieldData...)
+	ctxt := context.GetInsertBuffer(ds)
+	ctxt.data = append(ctxt.data, fieldData)
 }

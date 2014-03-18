@@ -1,7 +1,6 @@
 package goal
 
 import (
-	"database/sql"
 	"strings"
 )
 
@@ -30,7 +29,7 @@ type DataContext struct {
 }
 
 func MakeDataContext() *DataContext {
-	return &DataContext{&DatabaseContext{nil, nil, map[int]*sql.Stmt{}}, []DataSchema{}}
+	return &DataContext{&DatabaseContext{nil, map[int]*DatabaseBuffer{}}, []DataSchema{}}
 }
 
 func (s *DataContext) DefineData(name string, fieldNames, keys []string) int {
