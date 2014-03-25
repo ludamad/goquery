@@ -1,7 +1,6 @@
 package goal
 
 import (
-	"fmt"
 	"go/ast"
 	"reflect"
 )
@@ -54,8 +53,6 @@ func (ev *traverseContext) Visit(n ast.Node) ast.Visitor {
 				ev.stack.PopN(len(*ev.stack) - 1)
 			}
 		}
-	} else {
-		fmt.Printf("%v: %v had no event!\n", reflect.TypeOf(n), n)
 	}
 	return &evChild
 }

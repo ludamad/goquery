@@ -1,6 +1,6 @@
 require "goal"
 
-local helper = require "tests.helper16"
+local helper = require "tests.helper.helper16"
 
 --------------------------------------------------------------------------------
 -- Database functions
@@ -49,12 +49,6 @@ end
 
 local function main()
     init()
-    
-    for result in values(DataQuery [[
-        select * from FuncDecl
-    ]]) do
-        pretty_print(result)
-    end
     
     Analyze (
         Files(FindPackages("src"))

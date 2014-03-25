@@ -7,6 +7,7 @@ import (
 	"github.com/stevedonovan/luar"
 	"go/build"
 	"io/ioutil"
+	"os"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -169,6 +170,10 @@ func NewGoalLuaContext(namespace string) *lua.State {
 	luar.Register(L, "", luar.Map{
 		"ColorPrint": colorPrint,
 		"Colorify":   colorify,
+	})
+
+	luar.Register(L, "", luar.Map{
+		"sys_args": os.Args,
 	})
 	return L
 }

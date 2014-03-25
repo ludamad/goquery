@@ -39,6 +39,15 @@ function table.index_of(t, val)
 end
 function table.merge(t1, t2) for k,v in pairs(t1) do t2[k] = v end end
 
+function table.contains(t, val)
+    for i=1,#t do 
+        if t[i] == val then 
+            return true
+        end
+    end
+    return false
+end
+
 -- Lua string API extension:
 function string:split(sep) 
     local t = {}
@@ -409,6 +418,8 @@ end
 local function sliceWrap(f) 
     return function(...) return goal.SliceToTable(f(...)) end
 end
+
+_G.sys_args = goal.SliceToTable(_G.sys_args)
 
 for toWrap in values {"FindSubdirectories"} do
     goal[toWrap] = sliceWrap(goal[toWrap])

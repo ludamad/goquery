@@ -1,8 +1,6 @@
 require "goal"
 
-local node_types = require "tests.helper15"
-
-print "HERE"
+local node_types = require "tests.helper.helper15"
 
 --------------------------------------------------------------------------------
 -- Database functions
@@ -57,13 +55,7 @@ end
 
 local function main()
     init()
-    
-    for result in values(DataQuery [[
-        select * from functions
-    ]]) do
-        pretty_print(result)
-    end
-    
+
     Analyze (
         Files(FindPackages("src"))
     )

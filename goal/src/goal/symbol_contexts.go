@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -77,28 +78,27 @@ func isDirectory(path string) bool {
 func (context *GlobalSymbolContext) ParseAndInferTypes(filename string) {
 	if isDirectory(filename) {
 		// File set aggregates all token information for all our files
-		pkgs, err := parser.ParseDir(context.FileSet, filename, func(os.FileInfo) bool { return true }, parser.AllErrors)
+		pkgs, err := parser.ParseDir(context.FileSet, filename, func(os.FileInfo) bool { return true }, parser.DeclarationErrors)
 		if err != nil {
-			fmt.Println("Problem in ParseAndInferTypes:\n", err)
+			//fmt.Println("Problem in ParseAndInferTypes:\n", err)
 			return
 		}
-		for pkgName, pkg := range pkgs {
+		for _, pkg := range pkgs {
 			files := []*ast.File{}
-			fmt.Println(pkgName, pkg)
 			for filename, file := range pkg.Files {
 				context.NameToAstFile[filename] = file
 				files = append(files, file)
 			}
-			context.inferTypes(pkg.Name, files)
+			context.inferTypes(filename, pkg.Name, files)
 		}
 	} else {
-		file, err := parser.ParseFile(context.FileSet, filename, nil, parser.AllErrors)
+		file, err := parser.ParseFile(context.FileSet, filename, nil, parser.DeclarationErrors)
 		if err != nil {
-			fmt.Println("Problem in ParseAndInferTypes:\n", err)
+			//fmt.Println("Problem in ParseAndInferTypes:\n", err)
 			return
 		}
 		context.NameToAstFile[filename] = file
-		context.inferTypes(file.Name.Name, []*ast.File{file})
+		context.inferTypes(filepath.Dir(filename), file.Name.Name, []*ast.File{file})
 	}
 }
 

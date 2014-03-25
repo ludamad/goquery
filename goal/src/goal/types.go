@@ -3,9 +3,11 @@ package goal
 import (
 	"bytes"
 	"strconv"
+	//"strings"
 
 	"fmt"
 	"go/ast"
+	"os"
 
 	_ "code.google.com/p/go.tools/go/gcimporter"
 	"code.google.com/p/go.tools/go/types"
@@ -69,17 +71,38 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 	}
 }
 
-func (context *GlobalSymbolContext) inferTypes(name string, files []*ast.File) {
+func (context *GlobalSymbolContext) inferTypes(base string, name string, files []*ast.File) {
 	var ctxt types.Config
 
+	ctxt.FakeImportC = true
+
+	var cachedErr error
 	ctxt.Error = func(err error) {
+		cachedErr = err
+		//if strings.Contains(err.Error(), "import") {
 		fmt.Println("A problem occurred in inferTypes:\n", err)
+		//}
 	}
 	ctxt.IgnoreFuncBodies = false
-	_, err := ctxt.Check(name, context.FileSet, files, context.Info)
+	prevWd := getWD()
+	setWD(base)
+	ctxt.Check(name, context.FileSet, files, context.Info)
+	setWD(prevWd)
+	//mt.Println(err)
+}
 
+func getWD() string {
+	prevWd, err := os.Getwd()
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
+	}
+	return prevWd
+}
+
+func setWD(wd string) {
+	err := os.Chdir(wd)
+	if err != nil {
+		panic(err)
 	}
 }
 
