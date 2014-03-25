@@ -59,7 +59,7 @@ local function defineEvents(tag)
 
     EventCase(FuncDecl "n") (receiver "n")(
     ) (Otherwise) (
-        Store "functions" (Tag, id "n", location "n", name "n", type "n", Body.id "n")
+        Store "functions" (Tag, id "n", location "n", name "n", typeof "n", Body.id "n")
     )
 
     Event(BlockStmt "n") (

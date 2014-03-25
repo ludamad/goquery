@@ -39,7 +39,7 @@ end
 function FuncDeclNode:emit_event(Tag)
     EventCase(FuncDecl "n") (receiver "n") (
     )(Otherwise) (
-        Store "functions" (Tag, id "n", location "n", name "n", type "n", Body.id "n")
+        Store "functions" (Tag, id "n", location "n", name "n", typeof "n", Body.id "n")
     )
 end
 
@@ -116,7 +116,7 @@ local node_types = {
 
 for name, schema in pairs {
     FuncLit = {
-        data = {"type"},
+        data = {"typeof"},
         children = {"Body"}
     },
 
@@ -125,7 +125,7 @@ for name, schema in pairs {
     },
 
     CompositeLit = {
-        data = {"type"}
+        data = {"typeof"}
 --        walkExprList(Elts "n")
     },
 
@@ -144,7 +144,7 @@ for name, schema in pairs {
         optional = {"Low", "High", "Max"}
     },
     TypeAssertExpr = {
-        data = {"type"},
+        data = {"typeof"},
         children = {"X"}
     },
     CallExpr = {

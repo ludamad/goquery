@@ -184,7 +184,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		return makeIntRef(bc.GetObjectId(n.Value.(ast.Node)))
 	}
 
-	if memberIdx == SMEMBER_type {
+	if memberIdx == SMEMBER_typeof {
 		expr, ok := n.Value.(ast.Expr)
 		if ok {
 			return bc.exprReprRef(expr)
@@ -193,7 +193,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 
 	switch node := n.Value.(type) {
 	case *ast.FuncDecl:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			return makeStrRef(bc.ExprRepr(node.Type))
 		} else if memberIdx == SMEMBER_name {
 			return makeStrRef(node.Name.Name)
@@ -204,7 +204,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 			return goalRef{_TYPE_INFO.fieldTypeTable, node.Recv.List[0]}
 		}
 	case *ast.Field:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			return makeStrRef(bc.ExprRepr(node.Type))
 		} else if memberIdx == SMEMBER_name {
 			if len(node.Names) == 0 {
@@ -214,12 +214,12 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		}
 
 	case *ast.FuncLit:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			return makeStrRef(bc.ExprRepr(node.Type))
 		}
 
 	case *ast.CompositeLit:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			if node.Type == nil {
 				return makeStrRef("")
 			}
@@ -227,14 +227,14 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		}
 
 	case *ast.TypeAssertExpr:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			if node.Type == nil {
 				return makeStrRef(nil)
 			}
 			return makeStrRef(bc.ExprRepr(node.Type))
 		}
 	case *ast.TypeSpec:
-		if memberIdx == SMEMBER_type {
+		if memberIdx == SMEMBER_typeof {
 			return makeStrRef(bc.ExprRepr(node.Type))
 		} else if memberIdx == SMEMBER_name {
 			return makeStrRef(bc.File.Name.Name + "." + node.Name.Name) // A beauty
@@ -244,7 +244,7 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
 	}
 
-	if memberIdx == SMEMBER_type {
+	if memberIdx == SMEMBER_typeof {
 		return makeStrRef(nil)
 	}
 

@@ -23,7 +23,7 @@ EventCaseType (
     TypeSpec "n", Type "n"
 ) (InterfaceType) (
     ForAll "m" (Type.Methods.List "n") (
-        Printf("Interface %s needs method %s\n", name "n", type "m")
+        Printf("Interface %s needs method %s\n", name "n", typeof "m")
     )
 )
 Analyze(Files "tests/interface.go")

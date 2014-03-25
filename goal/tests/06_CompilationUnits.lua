@@ -13,7 +13,7 @@ end
 Test(
     "FD",
     Printf("FuncDecl: Found %s '%s' at '%s'\n", 
-        var "FD.type", var "FD.name", var "FD.location"
+        var "FD.typeof", var "FD.name", var "FD.location"
     )
 )
 
@@ -26,7 +26,7 @@ Test(
 Test(
     "FD",
     Case(receiver "FD") (
-        Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", receiver.type "FD")
+        Printf("ConditionalCase: Function '%s' has receiver type '%s'.\n", name "FD", receiver.typeof "FD")
     ) (Otherwise) (
         Printf("ConditionalCase: Function '%s' has no receiver type.\n", name "FD")
     )

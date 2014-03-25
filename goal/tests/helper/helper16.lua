@@ -59,11 +59,11 @@ end
 
 function FuncDeclNode:emit_event(Tag)
     Event(FuncDecl "n") (
---        Printf(">> FUNCDECL Tag=%v Id=%v Loc=%v Name=%v Recv=%v %v %v\n", Tag, id "n", location "n", name "n", receiver.type "n",  type "n", Body.id "n"),
+--        Printf(">> FUNCDECL Tag=%v Id=%v Loc=%v Name=%v Recv=%v %v %v\n", Tag, id "n", location "n", name "n", receiver.typeof "n",  typeof "n", Body.id "n"),
         Store "FuncDecl" (
             Tag, id "n", location "n", -- Standard
-            name "n", receiver.type "n", 
-            type "n", Body.id "n"
+            name "n", receiver.typeof "n", 
+            typeof "n", Body.id "n"
         )
     )
 end
@@ -92,7 +92,7 @@ function NodeDumper:create_table() end
 function NodeDumper:_handle_data(Tag)
     return Store "node_data" (Tag, id "n", 
             Constant(self.name), self.data,
-            location "n", type "n"
+            location "n", typeof "n"
     )
 end
 function NodeDumper:_handle_links(Tag)

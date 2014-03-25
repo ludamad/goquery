@@ -2,8 +2,6 @@
 -- Various globals, defined for convenience
 --------------------------------------------------------------------------------
 
-local type = _G.type -- DSL redefines 'type'
-_G.typeof = type
 -- Set to a metatable that does not allow nil accesses
 function nilprotect(t)
     return setmetatable(t, nilprotect_meta)

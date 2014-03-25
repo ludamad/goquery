@@ -19,16 +19,16 @@ Data "types" (
 )
 
 EventCase(FuncDecl "f") (receiver "f")(
-    Store "methods" (name "f", type "f", receiver.type "f", location "f")
+    Store "methods" (name "f", typeof "f", receiver.typeof "f", location "f")
 ) (Otherwise) (
-    Store "functions" (name "f", type "f", location "f")
+    Store "functions" (name "f", typeof "f", location "f")
 )
 
 EventCaseType (
     TypeSpec "n", Type "n"
 ) (InterfaceType) (
     ForAll "f" (Type.Methods.List "n") (
-       Store "interface_reqs" (name "n", name "f", type "f", location "f")
+       Store "interface_reqs" (name "n", name "f", typeof "f", location "f")
     )
 )
 

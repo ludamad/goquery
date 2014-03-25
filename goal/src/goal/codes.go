@@ -71,7 +71,7 @@ const (
 const (
 	SMEMBER_location = iota
 	SMEMBER_pos
-	SMEMBER_type
+	SMEMBER_typeof
 	SMEMBER_name
 	SMEMBER_receiver
 	SMEMBER_id
