@@ -1,4 +1,0 @@
-return {
-    diff = function()
-    end
-}

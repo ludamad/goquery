@@ -5,7 +5,7 @@ import (
 	"strconv"
 	//"strings"
 
-	"fmt"
+	//"fmt"
 	"go/ast"
 	"os"
 
@@ -67,7 +67,11 @@ func typeRepresentation(buffer *bytes.Buffer, typ types.Type) {
 		buffer.WriteRune('.')
 		buffer.WriteString(namedType.Obj().Name())
 	default:
-		buffer.WriteString(typ.String())
+		if typ != nil {
+			buffer.WriteString(typ.String())
+		} else {
+			buffer.WriteString("<?>")
+		}
 	}
 }
 
@@ -76,18 +80,16 @@ func (context *GlobalSymbolContext) inferTypes(base string, name string, files [
 
 	ctxt.FakeImportC = true
 
-	var cachedErr error
 	ctxt.Error = func(err error) {
-		cachedErr = err
 		//if strings.Contains(err.Error(), "import") {
-		fmt.Println("A problem occurred in inferTypes:\n", err)
+		//fmt.Println("A problem occurred in inferTypes:\n", err)
 		//}
 	}
 	ctxt.IgnoreFuncBodies = false
-	prevWd := getWD()
-	setWD(base)
+	//prevWd := getWD()
+	//setWD(base)
 	ctxt.Check(name, context.FileSet, files, context.Info)
-	setWD(prevWd)
+	//setWD(prevWd)
 	//mt.Println(err)
 }
 
@@ -156,5 +158,9 @@ func (context *GlobalSymbolContext) exprReprRef(expr ast.Expr) goalRef {
 		return makeStrRef(nil)
 	}
 	//fmt.Printf("!**GET x=%#v, typ=%#v\n", expr, typ)
-	return makeStrRef(TypeRepresentation(typ))
+	typRepr := TypeRepresentation(typ)
+	if typRepr == "<?>" {
+		return makeStrRef(nil)
+	}
+	return makeStrRef(typRepr)
 }

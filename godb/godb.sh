@@ -10,6 +10,11 @@ fi
 
 args="$@"
 
+if [[ $args == "" ]] ; then
+    echo "No arguments provided. Exitting."
+    exit
+fi
+
 # Constants:
 # Path to GoAL & godb source code:
 SCRIPT_DIR=/home/adomurad/scripts/goquery/godb/
@@ -46,38 +51,51 @@ function run() {
 
 function dump() {
     commit_name=$1
-    if [[ "$commit_name" == "" ]] ; then commit_name=HEAD fi
+    if [[ "$commit_name" == "" ]] ; then commit_name=HEAD ; fi
     hash=$(git rev-parse --verify $commit_name)
     run dump $hash
 }
 
-function misc() {
+# The typical command form:
+function normal1arg() {
     commit_name=$2
-    if [[ "$commit_name" == "" ]] ; then commit_name=HEAD fi
+    if [[ "$commit_name" == "" ]] ; then commit_name=HEAD ; fi
     hash=$(git rev-parse --verify $commit_name)
     run $1 $hash
 }
 
 # TODO: For now, only compare HEAD and HEAD^
 function diff() {
-    hash1=$(git rev-parse --verify HEAD)
-    hash2=$(git rev-parse --verify HEAD^)
+    hash1=$(git rev-parse --verify HEAD^)
+    hash2=$(git rev-parse --verify HEAD)
     run diff $hash1 $hash2
 }
 
+function man() {
+    sqliteman $DB_NAME
+}
+
 function init() {
-    echo "$SCRIPT_DIR/godb.sh dump" > ".git/hooks/pre-commit"
-    chmod a+x ".git/hooks/pre-commit"
+    if [ ! -f ".git/hooks/post-commit" ] ; then
+        echo "$SCRIPT_DIR/godb.sh dump" > ".git/hooks/post-commit"
+        chmod a+x ".git/hooks/post-commit"
+    else
+        echo "Not touching existing .git/hooks/post-commit!"
+    fi
     # Also begin by dumping current commit:
     dump
 }
 
 if handle_flag "init" ; then
     init
-elif handle_flag "dump" ; then
-    dump 
+elif handle_flag "deinit" || handle_flag "clear" ; then
+    echo "Removing database. Please decide if you wish to remove .git/hooks/post-commit."
+    rm $DB_NAME
 elif handle_flag "diff" ; then
     diff
+elif handle_flag "man" ; then
+    man
 else
-    misc $@
+    # The typical command form:
+    normal1arg $@
 fi

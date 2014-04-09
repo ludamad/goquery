@@ -100,6 +100,10 @@ func readLineWrap(prompt string) interface{} {
 	}
 }
 
+func timeSince(t time.Time) float64 {
+	return float64(time.Since(t).Nanoseconds()) / 1000000.0
+}
+
 var _API luar.Map = luar.Map{
 	// See walker.go for details:
 	"NewBytecodeContext": NewBytecodeContext,
@@ -109,7 +113,9 @@ var _API luar.Map = luar.Map{
 	"FindSubdirectories": findSubdirectories,
 	"NullFileContext":    NewFileSymbolContext(nil, nil),
 	// See codes.go for details:
-	"CurrentTime":        time.Now,
+	"CurrentTime": time.Now,
+	"TimeSince":   timeSince,
+
 	"BC_CONSTANT":        BC_CONSTANT,
 	"BC_PUSH":            BC_PUSH,
 	"BC_PUSH_NIL":        BC_PUSH_NIL,
@@ -144,12 +150,14 @@ var _API luar.Map = luar.Map{
 
 	"TypeInfo": _TYPE_INFO,
 
-	"SMEMBER_receiver":  SMEMBER_receiver,
-	"SMEMBER_name":      SMEMBER_name,
-	"SMEMBER_location":  SMEMBER_location,
-	"SMEMBER_typeof":    SMEMBER_typeof,
-	"SMEMBER_id":        SMEMBER_id,
-	"SMEMBER_stringify": SMEMBER_stringify,
+	"SMEMBER_receiver":     SMEMBER_receiver,
+	"SMEMBER_name":         SMEMBER_name,
+	"SMEMBER_location":     SMEMBER_location,
+	"SMEMBER_end_location": SMEMBER_end_location,
+	"SMEMBER_typeof":       SMEMBER_typeof,
+	"SMEMBER_basetype":     SMEMBER_basetype,
+	"SMEMBER_id":           SMEMBER_id,
+	"SMEMBER_stringify":    SMEMBER_stringify,
 
 	"BIN_OP_AND":       BIN_OP_AND,
 	"BIN_OP_OR":        BIN_OP_OR,

@@ -174,6 +174,18 @@ func makeIntRef(value interface{}) goalRef {
 }
 
 func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) goalRef {
+	if memberIdx == SMEMBER_basetype {
+		res := bc.resolveSpecialMember(objIdx, SMEMBER_typeof)
+		if res.Value == nil {
+			return res
+		}
+		s := res.Value.(string)
+		if s[0] == '*' {
+			res.Value = s[1:]
+		}
+		return res
+	}
+
 	n := bc.Get(objIdx)
 
 	if n.Value == nil {
@@ -241,7 +253,10 @@ func (bc *BytecodeExecContext) resolveSpecialMember(objIdx int, memberIdx int) g
 		}
 	}
 	if memberIdx == SMEMBER_location {
-		return makeStrRef(bc.PositionString(n.Value.(ast.Node)))
+		return makeStrRef(bc.PositionString(n.Value.(ast.Node), false))
+	}
+	if memberIdx == SMEMBER_end_location {
+		return makeStrRef(bc.PositionString(n.Value.(ast.Node), true))
 	}
 
 	if memberIdx == SMEMBER_typeof {

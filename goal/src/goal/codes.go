@@ -70,8 +70,10 @@ const (
 // Special members
 const (
 	SMEMBER_location = iota
+	SMEMBER_end_location
 	SMEMBER_pos
 	SMEMBER_typeof
+	SMEMBER_basetype
 	SMEMBER_name
 	SMEMBER_receiver
 	SMEMBER_id

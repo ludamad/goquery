@@ -31,8 +31,14 @@ func (context *DatabaseContext) commit(buff *DatabaseBuffer, insertTransaction *
 	stmt.Close()
 }
 
+var DUMMY_DB bool = (os.Getenv("DUMMY") != "")
+
 func (context *DatabaseContext) Commit() {
 	if context.DB == nil {
+		return
+	}
+	if DUMMY_DB {
+		context.insertBuffers = map[int]*DatabaseBuffer{}
 		return
 	}
 	tx, err := context.DB.Begin()
@@ -105,6 +111,7 @@ func (context *DataContext) DropAllData() {
 func (context *DatabaseContext) Query(query string, args ...interface{}) ([]string, [][]interface{}) {
 	rows, err := context.DB.Query(query, args...)
 	if err != nil {
+		fmt.Printf("Error occurred in Query running this query\n %s", query)
 		panic(err)
 	}
 	columns, _ := rows.Columns()
@@ -146,11 +153,14 @@ func (ds *DataSchema) CreateTable(context *DatabaseContext) {
 	_, err := context.DB.Exec(sql)
 
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err) // Catch errors later, usually this means the table already exists, which is fine
 	}
 }
 
 func (ds *DataSchema) Insert(context *DatabaseContext, fieldData []interface{}) {
 	ctxt := context.GetInsertBuffer(ds)
 	ctxt.data = append(ctxt.data, fieldData)
+	if len(ctxt.data) > 1000 {
+		context.Commit()
+	}
 }

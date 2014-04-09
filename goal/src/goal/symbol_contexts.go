@@ -40,6 +40,8 @@ func (context *GlobalSymbolContext) FileList() []*ast.File {
 }
 
 func (context *GlobalSymbolContext) ParseAndInferTypesAll(files []string) {
+
+	defer timeTrack(time.Now(), "ParseAndInferTypesAll")
 	for _, filename := range files {
 		context.ParseAndInferTypes(filename)
 	}
@@ -53,7 +55,8 @@ func (context *GlobalSymbolContext) ClearParseResults() {
 
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	fmt.Printf("%s took %s\n", name, elapsed)
+	fmt.Printf("%s took %fms\n", name, elapsed.Seconds()*1000.0)
+
 }
 
 func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
@@ -61,10 +64,11 @@ func (context *GlobalSymbolContext) AnalyzeAll(files []string) {
 	context.ClearParseResults()
 	context.ParseAndInferTypesAll(files)
 
-	defer timeTrack(time.Now(), "Actual Analysis")
+	defer timeTrack(time.Now(), "AST Traversal")
 	for _, fileSym := range context.FileContextMap() {
 		context.Events.Analyze(context, fileSym)
 	}
+	context.Commit()
 }
 
 func isDirectory(path string) bool {
@@ -146,7 +150,12 @@ func NewFileSymbolContext(file *ast.File, tokenFile *token.File) *FileSymbolCont
 	return &FileSymbolContext{file, tokenFile}
 }
 
-func (fileSym *FileSymbolContext) PositionString(node ast.Node) string {
-	pos := fileSym.TokenFile.Position(node.Pos())
+func (fileSym *FileSymbolContext) PositionString(node ast.Node, end bool) string {
+	var pos token.Position
+	if end {
+		pos = fileSym.TokenFile.Position(node.End())
+	} else {
+		pos = fileSym.TokenFile.Position(node.Pos())
+	}
 	return fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
 }

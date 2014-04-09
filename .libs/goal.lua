@@ -609,7 +609,7 @@ function Compiler:ResolveObject(parts)
     local node, mustExist = self.objects, true
     if #parts == 0 then return nil end
     for part in values(parts) do
-        assert(part:match("^%w+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
+        assert(part:match("^[%w_%.]+$"), "Identifiers must be made up of letters only! (got \"" .. table.concat(parts, ".") .. "\")")
         node = node.Lookup(part, mustExist) ; mustExist = false
     end
     return node
