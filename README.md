@@ -1,14 +1,11 @@
 Goquery (tentative repo title)
 -
 Undergraduate computer science project at UOIT, year 2013-2014.  
-Goquery intends to be a tool or set of small tools, time permitting.
-
-Currently in progress is a DSL for traversing Go sourcecode.
 
 Disclaimer: 
 -
 
-**What follows is an incomplete and speculative specification for a language still heavily under development. There is no warranty that any described feature actually exists.**
+**What follows is an incomplete specification while the language was still heavily under development. There is no warranty that any described feature actually exists. If you have interest in the project and want to read something up-to-date, I would recommend skimming the thesis. **
 
 GoAL: Go Analysis Language
 =
