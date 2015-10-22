@@ -1,4 +1,4 @@
-Goquery (tentative repo title)
+Goquery tools
 -
 Undergraduate computer science project at UOIT, year 2013-2014.  
 
